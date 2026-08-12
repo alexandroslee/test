@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#155eef" />
+  <title>AI 超簡易營業稅申報系統｜雛型</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">稅</div><div><h1>AI 超簡易<br>營業稅申報</h1><small>401 Prototype</small></div></div>
+    <div class="demo-badge">⚠ 雛型 DEMO｜不會實際申報</div>
+    <nav class="nav" id="desktopNav">
+      <button data-page="dashboard" class="active">🏠 儀表板</button>
+      <button data-page="capture">📷 拍發票</button>
+      <button data-page="invoices">🧾 發票明細</button>
+      <button data-page="filing">🤖 AI 申報</button>
+      <button data-page="form401">📄 401 資料</button>
+      <button data-page="audit">🛡 稽核紀錄</button>
+      <button data-page="settings">⚙️ 企業設定</button>
+    </nav>
+    <div class="sidebar-footer">MVP：一般稅額計算／專營應稅／401。<br>資料只存於本機瀏覽器 LocalStorage。</div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar"><div><h2 id="pageTitle">本期營業稅儀表板</h2><div class="muted" id="periodLabel">2026 年 7–8 月</div></div><div class="top-actions"><span class="status info" id="agentStatus">● Agent 待命</span><button class="btn ghost" id="resetDemo">重設示範資料</button></div></div>
+    <div class="notice">本系統為技術雛型：可產生申報資料與模擬檢核，但不會連線財政部、不會實際送出 401，也不會進行真實付款。</div>
+
+    <section class="page active" id="page-dashboard">
+      <div class="grid cols-4">
+        <div class="card metric"><div class="label">銷項稅額【101】</div><div class="value money" id="mOutputTax">$0</div><div class="sub">本期銷項發票</div></div>
+        <div class="card metric"><div class="label">可扣抵進項【107】</div><div class="value money" id="mInputTax">$0</div><div class="sub">已確認可扣抵</div></div>
+        <div class="card metric"><div class="label">上期留抵【108】</div><div class="value money" id="mOpening">$0</div><div class="sub">跨期自動帶入</div></div>
+        <div class="card metric"><div class="label">本期結果</div><div class="value money" id="mResult">$0</div><div class="sub" id="mResultSub">預估應繳</div></div>
+      </div>
+      <div style="height:16px"></div>
+      <div class="split">
+        <div class="card">
+          <div class="section-title"><div><h3>🤖 AI Agent 主動協助</h3><p>正常資料自動整理，只把例外留給人。</p></div><button class="btn primary" id="runAgent">AI 整理本期</button></div>
+          <div class="agent"><div class="avatar">🤖</div><div><h4 id="agentHeadline">本期資料已準備</h4><p id="agentMessage">我會檢查重複發票、統編、金額與可扣抵狀態，完成後準備 401。</p><div class="actions btn-row"><button class="btn secondary" data-goto="filing">查看申報準備</button><button class="btn ghost" data-goto="capture">新增發票</button></div></div></div>
+        </div>
+        <div class="card">
+          <div class="section-title"><div><h3>本期摘要</h3><p>使用者只需要看這裡。</p></div></div>
+          <div class="kpi-line"><span>收入（未稅）</span><strong id="dSales">$0</strong></div>
+          <div class="kpi-line"><span>支出（未稅）</span><strong id="dPurchases">$0</strong></div>
+          <div class="kpi-line"><span>待人工確認</span><strong id="dReview">0 張</strong></div>
+          <div class="kpi-line total"><span id="dResultLabel">預估應繳</span><strong class="big-pay" id="dResult">$0</strong></div>
+        </div>
+      </div>
+      <div style="height:16px"></div>
+      <div class="card">
+        <div class="section-title"><div><h3>最近發票</h3><p>僅顯示最近 5 筆。</p></div><button class="btn ghost" data-goto="invoices">全部明細</button></div>
+        <div class="table-wrap"><table><thead><tr><th>日期</th><th>類型</th><th>發票</th><th>對象統編</th><th>未稅</th><th>稅額</th><th>扣抵</th><th>狀態</th></tr></thead><tbody id="recentRows"></tbody></table></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-capture">
+      <div class="split">
+        <div class="card">
+          <div class="section-title"><div><h3>📷 拍攝／上傳發票</h3><p>手機可直接啟動相機。雛型尚未接真實 OCR 模型。</p></div><span class="status warn">Mock OCR</span></div>
+          <div class="upload-box"><div style="font-size:40px">📷</div><p><strong>選擇發票照片</strong></p><input id="invoiceImage" type="file" accept="image/*" capture="environment"><img id="imagePreview" class="preview" alt="發票預覽"></div>
+          <div class="hr"></div>
+          <button class="btn primary" id="mockOcr">✨ AI 模擬辨識</button>
+          <p class="muted" style="font-size:12px">此按鈕載入示範辨識結果，用來測試完整報稅流程；正式版將替換為 OCR／Vision Adapter。</p>
+        </div>
+        <div class="card">
+          <div class="section-title"><div><h3>辨識結果</h3><p>可人工查看與修改後才存入。</p></div></div>
+          <form id="invoiceForm" class="form-grid">
+            <input type="hidden" id="editId">
+            <div class="field"><label>進／銷項</label><select id="direction"><option value="purchase">支出／進項</option><option value="sales">收入／銷項</option></select></div>
+            <div class="field"><label>日期</label><input id="invDate" type="date" required></div>
+            <div class="field"><label>發票字軌</label><input id="track" maxlength="2" placeholder="AA" required></div>
+            <div class="field"><label>發票號碼</label><input id="number" maxlength="8" placeholder="12345678" required></div>
+            <div class="field"><label>銷售人統編</label><input id="sellerTaxId" maxlength="8" inputmode="numeric" required></div>
+            <div class="field"><label>買受人統編</label><input id="buyerTaxId" maxlength="8" inputmode="numeric"></div>
+            <div class="field"><label>未稅金額</label><input id="salesAmount" type="number" min="0" required></div>
+            <div class="field"><label>營業稅額</label><input id="taxAmount" type="number" min="0" required></div>
+            <div class="field"><label>含稅總額</label><input id="grossAmount" type="number" min="0" required></div>
+            <div class="field"><label>進項扣抵</label><select id="deductionCode"><option value="1">1 可扣抵－進貨及費用</option><option value="2">2 可扣抵－固定資產</option><option value="3">3 不可扣抵－進貨及費用</option><option value="4">4 不可扣抵－固定資產</option><option value="review">待人工確認</option></select></div>
+            <div class="field full"><label>品項／備註</label><input id="memo" placeholder="例如：Microsoft 365、電信費、商品銷售"></div>
+            <div class="field full"><div class="btn-row"><button type="submit" class="btn primary">儲存發票</button><button type="button" class="btn ghost" id="clearForm">清除</button></div></div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-invoices">
+      <div class="card">
+        <div class="section-title"><div><h3>🧾 發票明細</h3><p>AI 可先分類，人工可隨時修正。</p></div><div class="btn-row"><button class="btn primary" data-goto="capture">＋ 新增</button><button class="btn ghost" id="exportJson">匯出 JSON</button></div></div>
+        <div class="btn-row" style="margin-bottom:12px"><button class="btn small secondary filter active" data-filter="all">全部</button><button class="btn small ghost filter" data-filter="sales">銷項</button><button class="btn small ghost filter" data-filter="purchase">進項</button><button class="btn small ghost filter" data-filter="review">待確認</button></div>
+        <div class="table-wrap"><table><thead><tr><th>日期</th><th>方向</th><th>發票</th><th>銷售人</th><th>買受人</th><th>未稅</th><th>稅額</th><th>扣抵</th><th>狀態</th><th>操作</th></tr></thead><tbody id="invoiceRows"></tbody></table></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-filing">
+      <div class="steps" style="margin-bottom:16px"><span class="step done">1 發票整理</span><span class="step current">2 AI 計算</span><span class="step">3 官方檢核</span><span class="step">4 人工核准</span><span class="step">5 模擬送出</span></div>
+      <div class="split">
+        <div class="card">
+          <div class="section-title"><div><h3>🤖 AI 申報準備</h3><p>依 401 的核心欄位計算。</p></div><button class="btn primary" id="prepareFiling">重新計算</button></div>
+          <div class="kpi-line"><span>銷項稅額【101】</span><strong id="f101">$0</strong></div>
+          <div class="kpi-line"><span>得扣抵進項【107】</span><strong id="f107">$0</strong></div>
+          <div class="kpi-line"><span>上期累積留抵【108】</span><strong id="f108">$0</strong></div>
+          <div class="kpi-line"><span>本期應實繳【111】</span><strong id="f111">$0</strong></div>
+          <div class="kpi-line"><span>本期申報留抵【112】</span><strong id="f112">$0</strong></div>
+          <div class="kpi-line total"><span>本期累積留抵【115】</span><strong id="f115">$0</strong></div>
+          <div class="hr"></div>
+          <button class="btn secondary" id="validateOfficial">🔎 模擬官方前端檢核</button>
+          <div id="validationChecks" style="margin-top:12px"></div>
+        </div>
+        <div class="card">
+          <div class="section-title"><div><h3>人工核准 Gate</h3><p>Agent 不得跨過此關卡自行送件。</p></div></div>
+          <div id="issueList"></div>
+          <div class="hr"></div>
+          <div class="field"><label>核准人姓名</label><input id="approverName" placeholder="請輸入核准人姓名"></div>
+          <label style="display:flex;gap:10px;align-items:flex-start;margin:14px 0;line-height:1.5"><input type="checkbox" id="approvalCheck" style="margin-top:5px"><span>我已查看本期進銷項、可扣抵、留抵及 401 摘要，確認資料可進入正式申報準備。</span></label>
+          <div class="btn-row"><button class="btn primary" id="approveFiling">✅ 人工核准</button><button class="btn danger" id="simulateSubmit" disabled>模擬送出 401</button></div>
+          <div id="receiptBox" class="hidden" style="margin-top:16px"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-form401">
+      <div class="split">
+        <div class="card">
+          <div class="section-title"><div><h3>📄 401 核心欄位</h3><p>使用者看白話摘要，系統內部維持官方欄位。</p></div></div>
+          <div class="table-wrap"><table style="min-width:560px"><thead><tr><th>代號</th><th>欄位</th><th>金額</th></tr></thead><tbody id="core401Rows"></tbody></table></div>
+          <div class="btn-row" style="margin-top:14px"><button class="btn primary" id="downloadBan">下載 BAN.TXT</button><button class="btn secondary" id="downloadTetu">下載 TET_U</button></div>
+        </div>
+        <div class="card">
+          <div class="section-title"><div><h3>資料格式檢查</h3><p>BAN.TXT 81 字元；TET_U 112 欄／111 個 |。</p></div></div>
+          <div id="formatChecks"></div>
+          <h4>BAN.TXT 預覽</h4><div class="code" id="banPreview"></div>
+          <h4>TET_U 預覽</h4><div class="code" id="tetuPreview"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-audit">
+      <div class="card"><div class="section-title"><div><h3>🛡 稽核紀錄</h3><p>Prototype 以 append-only 方式顯示 Agent 與人工操作。</p></div><button class="btn ghost" id="clearAudit">清除紀錄</button></div><div class="table-wrap"><table><thead><tr><th>時間</th><th>角色</th><th>動作</th><th>內容</th></tr></thead><tbody id="auditRows"></tbody></table></div></div>
+    </section>
+
+    <section class="page" id="page-settings">
+      <div class="card"><div class="section-title"><div><h3>⚙️ 企業與申報設定</h3><p>雛型使用示範資料，請勿輸入真實敏感憑證／密碼。</p></div></div>
+        <form id="settingsForm" class="form-grid">
+          <div class="field"><label>企業名稱</label><input id="companyName" required></div>
+          <div class="field"><label>統一編號（8碼）</label><input id="companyTaxId" maxlength="8" inputmode="numeric" required></div>
+          <div class="field"><label>稅籍編號（9碼）</label><input id="taxRegistry" maxlength="9" inputmode="numeric" required></div>
+          <div class="field"><label>縣市代碼</label><select id="cityCode"><option value="A">A 臺北市</option><option value="B">B 臺中市</option><option value="D">D 臺南市</option><option value="E">E 高雄市</option><option value="F">F 新北市</option><option value="H">H 桃園市</option><option value="O">O 新竹市</option></select></div>
+          <div class="field"><label>本期起日</label><input id="periodStart" type="date" required></div>
+          <div class="field"><label>本期迄日</label><input id="periodEnd" type="date" required></div>
+          <div class="field"><label>上期累積留抵【108】</label><input id="openingCredit" type="number" min="0" required></div>
+          <div class="field"><label>申報人姓名</label><input id="declarantName"></div>
+          <div class="field"><label>申報人身分證號（示範）</label><input id="declarantId" maxlength="10"></div>
+          <div class="field"><label>電話區碼</label><input id="areaCode" maxlength="4"></div>
+          <div class="field"><label>電話</label><input id="phone" maxlength="11"></div>
+          <div class="field full"><button class="btn primary" type="submit">儲存設定</button></div>
+        </form>
+      </div>
+    </section>
+  </main>
+</div>
+
+<nav class="mobile-nav" id="mobileNav"><button data-page="dashboard" class="active">🏠<br>首頁</button><button data-page="capture">📷<br>拍發票</button><button data-page="invoices">🧾<br>明細</button><button data-page="filing">🤖<br>申報</button><button data-page="form401">📄<br>401</button></nav>
+<script src="tax-core.js"></script>
+<script src="app.js"></script>
+</body></html>
