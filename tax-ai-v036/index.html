@@ -3,268 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>AI 超簡易營業稅申報 V0.36｜統編 8 格透視拉正版</title>
+<title>AI 超簡易營業稅申報 V0.36｜V0.35介面＋8格透視拉正</title>
 <style>
-:root{--bg:#f5f7fb;--card:#fff;--line:#d9e2ec;--text:#233143;--muted:#5f7185;--pri:#175fe9;--ok:#0b8f55;--warn:#b7791f}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);font-family:"Microsoft JhengHei","PingFang TC",system-ui,sans-serif;color:var(--text)}
-.container{max-width:1280px;margin:0 auto;padding:18px}
-.header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
-.h1{font-size:34px;font-weight:900;line-height:1.15}
-.sub{color:var(--muted);font-size:14px;margin-top:4px}
-.badge{background:#fff3cd;color:#8a5600;padding:8px 12px;border-radius:999px;font-weight:700;border:1px solid #f4d9a8}
-.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;margin-top:18px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 4px 18px rgba(31,41,55,.05)}
-.card h2{margin:0 0 10px;font-size:24px}
-.card h3{margin:0 0 10px;font-size:20px}
-.help{font-size:14px;color:var(--muted);line-height:1.65}
-.btn{border:0;border-radius:12px;padding:12px 16px;font-size:16px;font-weight:800;cursor:pointer}
-.btn.primary{background:var(--pri);color:#fff}
-.btn.secondary{background:#eef4ff;color:#174bb6;border:1px solid #c9d9ff}
-.btn.ghost{background:#fff;color:#334155;border:1px solid var(--line)}
-.btn:disabled{opacity:.55;cursor:not-allowed}
-.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
-.upload{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.stage{border:2px dashed #c6d3e5;border-radius:18px;padding:12px;background:#fafcff}
-canvas, img{max-width:100%;display:block}
-#sourceCanvas{width:100%;background:#eef3f8;border-radius:12px;touch-action:none}
-#warpedCanvas{width:100%;background:#fff;border:1px solid var(--line);border-radius:12px}
-#binaryCanvas{width:100%;background:#fff;border:1px solid var(--line);border-radius:12px}
-#cells{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.cell{border:1px solid var(--line);border-radius:12px;padding:8px;background:#fff;text-align:center}
-.cell canvas{width:100%;aspect-ratio:1/1;background:#fff;border-radius:8px;border:1px solid #e8edf3}
-.cell .n{font-size:15px;font-weight:800;margin-top:6px}
-.cell .s{font-size:12px;color:var(--muted)}
-.kv{display:grid;grid-template-columns:160px 1fr;gap:6px 10px;font-size:15px;line-height:1.55}
-.status{padding:12px;border-radius:12px;font-size:14px;font-weight:700}
-.status.ok{background:#e9f9ef;color:#0b8f55}
-.status.warn{background:#fff6e2;color:#8a5600}
-.status.info{background:#eef4ff;color:#174bb6}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-.note{font-size:13px;color:#64748b}
-.pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#eff6ff;color:#174bb6;border:1px solid #c9d9ff;font-size:12px;font-weight:800}
-.panel-title{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.list{margin:0;padding-left:20px;line-height:1.75;color:#475569}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.manual-inputs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:8px}
-.manual-inputs label{font-size:12px;color:#64748b}
-.manual-inputs input{width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--line);font-size:14px}
-@media (max-width:980px){.grid{grid-template-columns:1fr}.h1{font-size:28px}.manual-inputs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+html,body{margin:0;background:#f4f7fb;font-family:"Microsoft JhengHei",system-ui,sans-serif}
+#app{display:block;width:100%;border:0;min-height:3600px;background:#f4f7fb}
+.loading{max-width:900px;margin:30px auto;padding:18px;background:#fff;border-radius:16px;border:1px solid #e2e8f0;color:#334155;font-weight:700}
 </style>
-<script async src="https://docs.opencv.org/4.10.0/opencv.js" onload="window.__opencvReady=true"></script>
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <div>
-      <div class="h1">AI 超簡易營業稅申報｜V0.36</div>
-      <div class="sub">統編 8 格透視拉正版：先抓買受人統編 8 格外框，拉正，再等寬切成 8 格，供後續手寫數字辨識。</div>
-    </div>
-    <div class="badge">DEMO｜先做 8 格透視校正，不實際申報</div>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <div class="panel-title"><h2>1. 上傳並校正 8 格統編框</h2><span class="pill">可拖曳四角微調</span></div>
-      <div class="help">先上傳包含「買受人統一編號 8 格」的照片或局部裁切圖。系統會先給出一組預設四角，你可以直接拖曳藍點，讓它貼齊外框四角，再按「透視拉正」。</div>
-      <div class="toolbar upload">
-        <input id="fileInput" type="file" accept="image/*">
-        <button class="btn ghost" id="resetCorners">重設角點</button>
-      </div>
-      <div class="stage"><canvas id="sourceCanvas" width="1000" height="520"></canvas></div>
-      <div class="manual-inputs">
-        <div><label>左上 X,Y</label><input id="pt0" placeholder="x,y"></div>
-        <div><label>右上 X,Y</label><input id="pt1" placeholder="x,y"></div>
-        <div><label>右下 X,Y</label><input id="pt2" placeholder="x,y"></div>
-        <div><label>左下 X,Y</label><input id="pt3" placeholder="x,y"></div>
-      </div>
-      <div class="toolbar">
-        <button class="btn primary" id="warpBtn">透視拉正 8 格</button>
-        <button class="btn secondary" id="thresholdBtn">二值化＋等寬切 8 格</button>
-      </div>
-      <div id="statusBox" class="status info">請先上傳圖片。若 OpenCV 尚未載入，按鈕會暫時無作用。</div>
-    </div>
-
-    <div class="card">
-      <div class="panel-title"><h2>2. 拉正結果與 8 格切割</h2><span class="pill">下一步可接 LeNet / 手寫數字模型</span></div>
-      <h3>拉正後外框</h3>
-      <canvas id="warpedCanvas" width="960" height="160"></canvas>
-      <div class="note">目標是把整個統編長框拉成水平、等高的標準長方形。</div>
-      <h3 style="margin-top:16px">二值化後</h3>
-      <canvas id="binaryCanvas" width="960" height="160"></canvas>
-      <div class="note">先做簡單二值化，後續可再加入去格線與置中。</div>
-      <h3 style="margin-top:16px">8 格切割結果</h3>
-      <div id="cells"></div>
-    </div>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <h2>3. 結果摘要</h2>
-      <div class="kv">
-        <div>外框偵測模式</div><div id="modeText">手動四角＋透視校正</div>
-        <div>拉正尺寸</div><div class="mono" id="warpSize">960 × 160</div>
-        <div>切格模式</div><div>等寬切成 8 格</div>
-        <div>當前目的</div><div>先把格子拉正，提供後續逐格手寫數字辨識</div>
-      </div>
-      <div class="status ok" style="margin-top:12px">V0.36 已改成「直接使用手寫發票上的格子」，不再把整排統編視為一般 OCR 文字區。</div>
-    </div>
-
-    <div class="card">
-      <h2>4. 後續 V0.37 / V0.38 建議</h2>
-      <ol class="list">
-        <li>加入自動偵測 8 格外框與四角點。</li>
-        <li>加入去格線與單格數字置中正規化。</li>
-        <li>接上 LeNet / MNIST 類型手寫數字辨識模型。</li>
-        <li>每格保留 Top-3 候選與信心值。</li>
-        <li>組成 8 碼後再跑台灣統編檢查碼。</li>
-        <li>與申報單位統編比對，自動判定可否列為進項。</li>
-      </ol>
-    </div>
-  </div>
-</div>
-
+<div id="loading" class="loading">正在載入 V0.36：維持 V0.35 介面，追加「買受人統編 8 格透視拉正」功能。</div>
+<iframe id="app" src="../tax-ai-v034/" title="AI 超簡易營業稅申報 V0.36"></iframe>
 <script>
-const sourceCanvas = document.getElementById('sourceCanvas');
-const sctx = sourceCanvas.getContext('2d');
-const warpedCanvas = document.getElementById('warpedCanvas');
-const binaryCanvas = document.getElementById('binaryCanvas');
-const cellsDiv = document.getElementById('cells');
-const statusBox = document.getElementById('statusBox');
-const fileInput = document.getElementById('fileInput');
-const warpBtn = document.getElementById('warpBtn');
-const thresholdBtn = document.getElementById('thresholdBtn');
-const resetCornersBtn = document.getElementById('resetCorners');
-const pointInputs = ['pt0','pt1','pt2','pt3'].map(id=>document.getElementById(id));
-let img = new Image();
-let imgReady = false;
-let display = {x:0,y:0,w:0,h:0,scale:1};
-let dragging = -1;
-let points = [
-  {x:160,y:180},
-  {x:840,y:180},
-  {x:840,y:340},
-  {x:160,y:340}
-];
-
-function setStatus(type, text){ statusBox.className = 'status ' + type; statusBox.textContent = text; }
-function opencvReady(){ return !!window.cv && !!window.__opencvReady; }
-function updatePointInputs(){ points.forEach((p,i)=>pointInputs[i].value=`${Math.round(p.x)},${Math.round(p.y)}`); }
-function readPointInputs(){ pointInputs.forEach((el,i)=>{ const m = el.value.match(/(-?\d+)\s*,\s*(-?\d+)/); if(m){ points[i] = {x:+m[1], y:+m[2]}; }}); draw(); }
-pointInputs.forEach(el=>el.addEventListener('change',readPointInputs));
-
-function fitImage(){
-  sctx.clearRect(0,0,sourceCanvas.width,sourceCanvas.height);
-  const maxW = sourceCanvas.width, maxH = sourceCanvas.height;
-  const ratio = Math.min(maxW / img.width, maxH / img.height);
-  const w = img.width * ratio, h = img.height * ratio;
-  const x = (maxW - w)/2, y = (maxH - h)/2;
-  display = {x,y,w,h,scale: ratio};
-  sctx.drawImage(img,x,y,w,h);
-}
-function defaultPoints(){
-  const {x,y,w,h} = display;
-  points = [
-    {x:x+w*0.12,y:y+h*0.42},
-    {x:x+w*0.87,y:y+h*0.40},
-    {x:x+w*0.87,y:y+h*0.76},
-    {x:x+w*0.12,y:y+h*0.79}
-  ];
-  updatePointInputs();
-}
-function draw(){
-  sctx.clearRect(0,0,sourceCanvas.width,sourceCanvas.height);
-  if(imgReady){ sctx.drawImage(img,display.x,display.y,display.w,display.h); }
-  sctx.lineWidth = 3;
-  sctx.strokeStyle = '#ef4444';
-  sctx.fillStyle = 'rgba(239,68,68,.12)';
-  sctx.beginPath();
-  sctx.moveTo(points[0].x, points[0].y);
-  for(let i=1;i<4;i++) sctx.lineTo(points[i].x, points[i].y);
-  sctx.closePath();
-  sctx.fill();
-  sctx.stroke();
-  points.forEach((p,i)=>{
-    sctx.beginPath(); sctx.fillStyle='#175fe9'; sctx.arc(p.x,p.y,9,0,Math.PI*2); sctx.fill();
-    sctx.fillStyle='#fff'; sctx.font='bold 12px Microsoft JhengHei'; sctx.fillText(String(i+1), p.x-3, p.y+4);
-  });
-}
-function getMousePos(evt){
-  const rect = sourceCanvas.getBoundingClientRect();
-  return {x:(evt.clientX-rect.left)*(sourceCanvas.width/rect.width), y:(evt.clientY-rect.top)*(sourceCanvas.height/rect.height)};
-}
-sourceCanvas.addEventListener('pointerdown',e=>{
-  const m = getMousePos(e);
-  dragging = points.findIndex(p=>Math.hypot(p.x-m.x,p.y-m.y)<18);
+const frame=document.getElementById('app'),loading=document.getElementById('loading');
+frame.addEventListener('load',()=>{
+  try{
+    const d=frame.contentDocument;
+    const loadScript=(src)=>new Promise((resolve,reject)=>{const s=d.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;d.body.appendChild(s)});
+    (async()=>{
+      await loadScript('../tax-ai-v035/layout-v035.js?build=20260816-2');
+      await loadScript('../tax-ai-v036/perspective-v036.js?build=20260816-2');
+      loading.style.display='none';
+      const resize=()=>{try{frame.style.height=Math.max(3600,d.documentElement.scrollHeight+80)+'px'}catch{}};
+      resize();
+      new ResizeObserver(resize).observe(d.documentElement);
+      setInterval(resize,1200);
+    })().catch(e=>{loading.textContent='V0.36 載入失敗：'+e.message});
+  }catch(e){loading.textContent='V0.36 載入失敗：'+e.message}
 });
-sourceCanvas.addEventListener('pointermove',e=>{
-  if(dragging<0) return;
-  const m = getMousePos(e);
-  points[dragging]={x:m.x,y:m.y};
-  updatePointInputs();
-  draw();
-});
-window.addEventListener('pointerup',()=>dragging=-1);
-
-function loadImage(src){
-  img = new Image();
-  img.onload=()=>{ imgReady=true; fitImage(); defaultPoints(); draw(); setStatus('ok','圖片已載入。請拖曳四角貼齊統編 8 格外框，再按「透視拉正 8 格」。'); };
-  img.src=src;
-}
-fileInput.addEventListener('change',e=>{
-  const file=e.target.files?.[0]; if(!file) return;
-  const reader=new FileReader(); reader.onload=ev=>loadImage(ev.target.result); reader.readAsDataURL(file);
-});
-resetCornersBtn.addEventListener('click',()=>{ if(!imgReady) return; defaultPoints(); draw(); setStatus('info','已重設預設角點，請再微調。'); });
-
-function canvasToMat(canvas){ return cv.imread(canvas); }
-function warpPerspectiveNow(){
-  if(!opencvReady()){ setStatus('warn','OpenCV.js 尚未載入完成，請稍後再試。'); return; }
-  if(!imgReady){ setStatus('warn','請先上傳圖片。'); return; }
-  const src = canvasToMat(sourceCanvas);
-  const srcTri = cv.matFromArray(4,1,cv.CV_32FC2,[points[0].x,points[0].y, points[1].x,points[1].y, points[2].x,points[2].y, points[3].x,points[3].y]);
-  const dstTri = cv.matFromArray(4,1,cv.CV_32FC2,[0,0, 959,0, 959,159, 0,159]);
-  const M = cv.getPerspectiveTransform(srcTri,dstTri);
-  const dsize = new cv.Size(960,160);
-  const dst = new cv.Mat();
-  cv.warpPerspective(src,dst,M,dsize,cv.INTER_LINEAR,cv.BORDER_CONSTANT,new cv.Scalar());
-  cv.imshow('warpedCanvas',dst);
-  src.delete(); srcTri.delete(); dstTri.delete(); M.delete(); dst.delete();
-  setStatus('ok','已完成透視拉正。下一步可按「二值化＋等寬切 8 格」。');
-}
-warpBtn.addEventListener('click',warpPerspectiveNow);
-
-function thresholdAndSplit(){
-  if(!opencvReady()){ setStatus('warn','OpenCV.js 尚未載入完成，請稍後再試。'); return; }
-  const src = canvasToMat(warpedCanvas);
-  let gray = new cv.Mat();
-  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
-  let thr = new cv.Mat();
-  cv.adaptiveThreshold(gray, thr, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 35, 12);
-  cv.imshow('binaryCanvas',thr);
-  cellsDiv.innerHTML='';
-  const w = thr.cols / 8;
-  for(let i=0;i<8;i++){
-    const roi = thr.roi(new cv.Rect(Math.round(i*w),0,Math.round(w),thr.rows));
-    const cellCanvas = document.createElement('canvas');
-    cellCanvas.width = 96; cellCanvas.height = 96;
-    const temp = new cv.Mat();
-    cv.resize(roi,temp,new cv.Size(96,96),0,0,cv.INTER_AREA);
-    cv.imshow(cellCanvas,temp);
-    const box = document.createElement('div'); box.className='cell';
-    const title = document.createElement('div'); title.className='n'; title.textContent=`第 ${i+1} 格`;
-    const sub = document.createElement('div'); sub.className='s'; sub.textContent='下一步：接手寫數字辨識';
-    box.appendChild(cellCanvas); box.appendChild(title); box.appendChild(sub); cellsDiv.appendChild(box);
-    roi.delete(); temp.delete();
-  }
-  src.delete(); gray.delete(); thr.delete();
-  setStatus('ok','已把 8 格統編框拉正並切成 8 格。下一步可接逐格手寫數字辨識模型。');
-}
-thresholdBtn.addEventListener('click',thresholdAndSplit);
-
-sctx.fillStyle='#eef3f8'; sctx.fillRect(0,0,sourceCanvas.width,sourceCanvas.height);
-sctx.fillStyle='#64748b'; sctx.font='bold 24px Microsoft JhengHei'; sctx.fillText('請上傳包含「買受人統一編號 8 格」的影像',180,240);
-updatePointInputs();
 </script>
 </body>
 </html>
