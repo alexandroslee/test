@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI 超簡易營業稅申報 V0.37｜V0.35介面＋8格透視＋MNIST逐格辨識</title>
+<style>
+html,body{margin:0;background:#f4f7fb;font-family:"Microsoft JhengHei",system-ui,sans-serif}
+#app{display:block;width:100%;border:0;min-height:4300px;background:#f4f7fb}
+.loading{max-width:900px;margin:30px auto;padding:18px;background:#fff;border-radius:16px;border:1px solid #e2e8f0;color:#334155;font-weight:700}
+</style>
+</head>
+<body>
+<div id="loading" class="loading">正在載入 V0.37：維持 V0.35 介面，加入 V0.36 8 格透視拉正與 MNIST CNN 逐格手寫數字辨識。</div>
+<iframe id="app" src="../tax-ai-v034/" title="AI 超簡易營業稅申報 V0.37"></iframe>
+<script>
+const frame=document.getElementById('app'),loading=document.getElementById('loading');
+frame.addEventListener('load',()=>{
+  try{
+    const d=frame.contentDocument;
+    const loadScript=(src)=>new Promise((resolve,reject)=>{const s=d.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;d.body.appendChild(s)});
+    (async()=>{
+      await loadScript('../tax-ai-v035/layout-v035.js?build=20260816-3');
+      await loadScript('../tax-ai-v036/perspective-v036.js?build=20260816-3');
+      await loadScript('../tax-ai-v037/digit-v037.js?build=20260816-3');
+      loading.style.display='none';
+      const resize=()=>{try{frame.style.height=Math.max(4300,d.documentElement.scrollHeight+100)+'px'}catch{}};
+      resize();
+      new ResizeObserver(resize).observe(d.documentElement);
+      setInterval(resize,1200);
+    })().catch(e=>{loading.textContent='V0.37 載入失敗：'+e.message});
+  }catch(e){loading.textContent='V0.37 載入失敗：'+e.message}
+});
+</script>
+</body>
+</html>
