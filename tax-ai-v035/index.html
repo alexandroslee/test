@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI 超簡易營業稅申報 V0.35｜三聯式版面解析</title>
+<style>
+html,body{margin:0;background:#f4f7fb;font-family:"Microsoft JhengHei",system-ui,sans-serif}
+#app{display:block;width:100%;border:0;min-height:3200px;background:#f4f7fb}
+.loading{max-width:900px;margin:30px auto;padding:18px;background:#fff;border-radius:16px;border:1px solid #e2e8f0;color:#334155;font-weight:700}
+</style>
+</head>
+<body>
+<div id="loading" class="loading">正在載入 V0.35：以 V0.34 為基礎，加入標準三聯式版面解析與 8 格買受人統編定位。</div>
+<iframe id="app" src="../tax-ai-v034/" title="AI 超簡易營業稅申報 V0.35"></iframe>
+<script>
+const frame=document.getElementById('app'),loading=document.getElementById('loading');
+frame.addEventListener('load',()=>{
+  try{
+    const d=frame.contentDocument;
+    const s=d.createElement('script');
+    s.src='../tax-ai-v035/layout-v035.js?build=20260816-1';
+    d.body.appendChild(s);
+    loading.style.display='none';
+    const resize=()=>{try{frame.style.height=Math.max(3200,d.documentElement.scrollHeight+60)+'px'}catch{}};
+    resize();
+    new ResizeObserver(resize).observe(d.documentElement);
+    setInterval(resize,1500);
+  }catch(e){loading.textContent='V0.35 載入失敗：'+e.message}
+});
+</script>
+</body>
+</html>
