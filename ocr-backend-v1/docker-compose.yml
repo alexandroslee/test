@@ -1,0 +1,10 @@
+services:
+  ocr:
+    build:
+      context: .
+      args:
+        UPSTREAM_COMMIT: 5ef5794c1b0c3fc640d6ac8c8d26562b6c035202
+    env_file: .env
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
