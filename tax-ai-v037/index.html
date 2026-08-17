@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>AI 超簡易營業稅申報 V0.37.3｜格線先行8格辨識</title>
+<title>AI 超簡易營業稅申報 V0.37.4｜格線先行8格辨識</title>
 <style>
 html,body{margin:0;background:#f4f7fb;font-family:"Microsoft JhengHei",system-ui,sans-serif}
-#app{display:block;width:100%;border:0;min-height:4700px;background:#f4f7fb}
+#app{display:block;width:100%;border:0;min-height:4900px;background:#f4f7fb}
 .loading{max-width:900px;margin:30px auto;padding:18px;background:#fff;border-radius:16px;border:1px solid #e2e8f0;color:#334155;font-weight:700}
 </style>
 </head>
 <body>
-<div id="loading" class="loading">正在載入 V0.37.3：維持 V0.35 介面，改成「先找完整8格格線 → 去除其餘內容 → 再做逐格手寫數字辨識」。</div>
-<iframe id="app" src="../tax-ai-v034/?build=20260817-3" title="AI 超簡易營業稅申報 V0.37.3"></iframe>
+<div id="loading" class="loading">正在載入 V0.37.4：維持 V0.35 介面，使用已實測的「格線先行 → 精準切8格 → 去除其餘內容 → 真實發票樣本校正＋MNIST」流程。</div>
+<iframe id="app" src="../tax-ai-v034/?build=20260817-4" title="AI 超簡易營業稅申報 V0.37.4"></iframe>
 <script>
 const frame=document.getElementById('app'),loading=document.getElementById('loading');
 frame.addEventListener('load',()=>{
@@ -20,14 +20,14 @@ frame.addEventListener('load',()=>{
     const d=frame.contentDocument;
     const loadScript=(src)=>new Promise((resolve,reject)=>{const s=d.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;d.body.appendChild(s)});
     (async()=>{
-      await loadScript('../tax-ai-v035/layout-v035.js?build=20260817-3');
-      await loadScript('../tax-ai-v036/perspective-v036.js?build=20260817-3');
-      await loadScript('../tax-ai-v037/grid-first-v0373.js?build=20260817-3');
+      await loadScript('../tax-ai-v035/layout-v035.js?build=20260817-4');
+      await loadScript('../tax-ai-v036/perspective-v036.js?build=20260817-4');
+      await loadScript('../tax-ai-v037/grid-first-v0374.js?build=20260817-4');
       loading.style.display='none';
-      const resize=()=>{try{frame.style.height=Math.max(4700,d.documentElement.scrollHeight+100)+'px'}catch{}};
+      const resize=()=>{try{frame.style.height=Math.max(4900,d.documentElement.scrollHeight+100)+'px'}catch{}};
       resize();new ResizeObserver(resize).observe(d.documentElement);setInterval(resize,1200);
-    })().catch(e=>{loading.textContent='V0.37.3 載入失敗：'+e.message});
-  }catch(e){loading.textContent='V0.37.3 載入失敗：'+e.message}
+    })().catch(e=>{loading.textContent='V0.37.4 載入失敗：'+e.message});
+  }catch(e){loading.textContent='V0.37.4 載入失敗：'+e.message}
 });
 </script>
 </body>
