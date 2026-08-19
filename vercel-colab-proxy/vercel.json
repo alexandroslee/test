@@ -1,0 +1,11 @@
+{
+  "rewrites": [
+    {"source": "/health", "destination": "/api/health"},
+    {"source": "/health/colab", "destination": "/api/health-colab"},
+    {"source": "/v1/invoice", "destination": "/api/invoice"}
+  ],
+  "functions": {
+    "api/invoice.js": {"maxDuration": 60},
+    "api/health-colab.js": {"maxDuration": 30}
+  }
+}
