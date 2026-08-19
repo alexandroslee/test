@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-Hant-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>AI 超簡易營業稅申報 V1.0｜api-ocr-2025 Backend</title>
+<title>AI 超簡易營業稅申報 V1.2｜Colab Gemma 4 E4B + api-ocr-2025</title>
 <style>html,body{margin:0;background:#f4f7fb;font-family:"Microsoft JhengHei",system-ui,sans-serif}#app{display:block;width:100%;border:0;min-height:5400px;background:#f4f7fb}.loading{max-width:900px;margin:30px auto;padding:18px;background:#fff;border-radius:16px;border:1px solid #e2e8f0;color:#334155;font-weight:700}</style></head>
-<body><div id="loading" class="loading">正在載入 V1.0：V0.35 操作介面＋格線先行 8 格辨識＋台灣 api-ocr-2025 OCR Backend。</div><iframe id="app" src="../tax-ai-v034/?build=20260817-v1-1" title="AI 超簡易營業稅申報 V1.0"></iframe>
+<body><div id="loading" class="loading">正在載入 V1.2：V0.35 操作介面＋格線先行 8 格辨識＋Colab GPU Gemma 4 E4B＋api-ocr-2025。</div><iframe id="app" src="../tax-ai-v034/?build=20260819-v12-colab" title="AI 超簡易營業稅申報 V1.2"></iframe>
 <script>
 const frame=document.getElementById('app'),loading=document.getElementById('loading');
 frame.addEventListener('load',()=>{
@@ -11,14 +11,14 @@ frame.addEventListener('load',()=>{
     if(!d) throw new Error('無法讀取內嵌介面');
     const loadScript=src=>new Promise((ok,no)=>{const s=d.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(new Error('無法載入 '+src));d.body.appendChild(s)});
     (async()=>{
-      await loadScript('../tax-ai-v035/layout-v035.js?build=20260817-v1-1');
-      await loadScript('../tax-ai-v036/perspective-v036.js?build=20260817-v1-1');
-      await loadScript('../tax-ai-v037/grid-first-v0374.js?build=20260817-v1-1');
-      await loadScript('../tax-ai-v1/api-ocr-v1.js?build=20260817-v1-1');
+      await loadScript('../tax-ai-v035/layout-v035.js?build=20260819-v12-colab');
+      await loadScript('../tax-ai-v036/perspective-v036.js?build=20260819-v12-colab');
+      await loadScript('../tax-ai-v037/grid-first-v0374.js?build=20260819-v12-colab');
+      await loadScript('../tax-ai-v1/api-ocr-v1.js?build=20260819-v12-colab');
       loading.style.display='none';
       const resize=()=>{try{frame.style.height=Math.max(5400,d.documentElement.scrollHeight+100)+'px'}catch{}};
       resize();new ResizeObserver(resize).observe(d.documentElement);setInterval(resize,1200);
-    })().catch(e=>loading.textContent='V1.0 載入失敗：'+e.message);
-  }catch(e){loading.textContent='V1.0 載入失敗：'+e.message}
+    })().catch(e=>loading.textContent='V1.2 載入失敗：'+e.message);
+  }catch(e){loading.textContent='V1.2 載入失敗：'+e.message}
 });
 </script></body></html>
