@@ -1,11 +1,15 @@
 {
-  "rewrites": [
-    {"source": "/health", "destination": "/api/health"},
-    {"source": "/health/colab", "destination": "/api/health-colab"},
-    {"source": "/v1/invoice", "destination": "/api/invoice"}
+  "$schema":"https://openapi.vercel.sh/vercel.json",
+  "rewrites":[
+    {"source":"/health","destination":"/api/health"},
+    {"source":"/health/colab","destination":"/api/health-colab"},
+    {"source":"/health/vlm","destination":"/api/health-colab"},
+    {"source":"/v1/invoice","destination":"/api/invoice"},
+    {"source":"/v1/buyer-ban","destination":"/api/buyer-ban"}
   ],
-  "functions": {
-    "api/invoice.js": {"maxDuration": 60},
-    "api/health-colab.js": {"maxDuration": 30}
+  "functions":{
+    "api/invoice.js":{"maxDuration":300},
+    "api/buyer-ban.js":{"maxDuration":300},
+    "api/health-colab.js":{"maxDuration":120}
   }
 }
