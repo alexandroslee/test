@@ -1,5 +1,6 @@
 {
   "$schema":"https://openapi.vercel.sh/vercel.json",
+  "fluid":true,
   "rewrites":[
     {"source":"/health","destination":"/api/health"},
     {"source":"/health/colab","destination":"/api/health-colab"},
