@@ -19,10 +19,10 @@ export default {
       const incoming=await req.formData();
       const out=new FormData();
       for(const [k,v] of incoming.entries()) out.append(k,v);
-      if(!out.get('engine')) out.set('engine','vlm');
+      if(!out.get('engine')) out.set('engine','auto');
       if(!out.get('slim')) out.set('slim','false');
       if(!out.get('include_image')) out.set('include_image','false');
-      const r=await fetch(base+'/v1/invoice',{method:'POST',body:out,signal:AbortSignal.timeout(59000)});
+      const r=await fetch(base+'/v1/invoice',{method:'POST',body:out,signal:AbortSignal.timeout(285000)});
       const text=await r.text();
       const headers={...CORS,'Content-Type':r.headers.get('content-type')||'application/json'};
       return new Response(text,{status:r.status,headers});
