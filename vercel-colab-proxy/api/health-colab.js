@@ -15,7 +15,7 @@ export default {
     if(req.method==='OPTIONS') return new Response(null,{status:204,headers:CORS});
     try{
       const base=upstream(req);
-      const r=await fetch(base+'/health',{signal:AbortSignal.timeout(25000)});
+      const r=await fetch(base+'/health/vlm',{signal:AbortSignal.timeout(110000)});
       const text=await r.text();
       const headers={...CORS,'Content-Type':r.headers.get('content-type')||'application/json'};
       return new Response(text,{status:r.status,headers});
