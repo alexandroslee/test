@@ -1,0 +1,22 @@
+{
+  "expected": "54169882",
+  "space_url": "https://alexandroslee-tax-ai-zerogpu.hf.space",
+  "tested_at_unix": 1787347442,
+  "submit_status": 200,
+  "submit_body": "{\"event_id\":\"483ce87f04c24e2090b919d8a60d8a2d\"}",
+  "event_id": "483ce87f04c24e2090b919d8a60d8a2d",
+  "result_status": 200,
+  "result_body": "event: complete\ndata: [{\"buyer_tax_id\": null, \"digits\": [], \"confidence\": 0.0, \"model\": \"google/gemma-4-E4B-it\", \"checksum_used\": false, \"raw\": \"```json\\n{\\\"buyer_tax_id\\\":null,\\\"digits\\\":null,\\\"confidence\\\":0.0}\\n```\", \"elapsed_ms\": 2353}]\n\n",
+  "result": {
+    "buyer_tax_id": null,
+    "digits": [],
+    "confidence": 0.0,
+    "model": "google/gemma-4-E4B-it",
+    "checksum_used": false,
+    "raw": "```json\n{\"buyer_tax_id\":null,\"digits\":null,\"confidence\":0.0}\n```",
+    "elapsed_ms": 2353
+  },
+  "recognized": null,
+  "match": false,
+  "elapsed_sec": 4.94
+}
