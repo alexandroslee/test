@@ -7,15 +7,15 @@
   let resolvedRepo='https://huggingface.co/new-space';
 
   const subtitle=document.querySelector('.top .muted');
-  if(subtitle)subtitle.textContent='V1.4.1｜GitHub Pages＋Hugging Face ZeroGPU＋Gemma 4 E4B';
+  if(subtitle)subtitle.textContent='V1.4.2｜GitHub Pages＋Hugging Face ZeroGPU＋Gemma 4 E4B';
   const hero=document.querySelector('.hero');
-  if(hero)hero.innerHTML='<b>V1.4.1：</b>真正雲端版。免 Colab、免 Tunnel、免 OpenAI API。GitHub Pages 直接呼叫 <b>Hugging Face ZeroGPU → Gemma 4 E4B</b>；Space 網址由自動部署流程回寫，不再硬猜帳號名稱。';
-  scanBtn.textContent='✨ V1.4.1：本地辨識＋ZeroGPU Gemma 4 E4B';
+  if(hero)hero.innerHTML='<b>V1.4.2：</b>真正雲端版。免 Colab、免 Tunnel、免 OpenAI API。GitHub Pages 直接呼叫 <b>Hugging Face ZeroGPU → Gemma 4 E4B</b>；新增「總額反算未稅／稅額」5% 營業稅功能。';
+  scanBtn.textContent='✨ V1.4.2：本地辨識＋ZeroGPU Gemma 4 E4B';
 
   const card=document.createElement('div'); card.className='card section'; card.id='hfZeroGpuCard';
-  card.innerHTML=`<div class="section-title"><div><h2>☁️ 1.4.1 Hugging Face ZeroGPU｜Gemma 4 E4B</h2><div class="muted">固定雲端 GPU；不再需要 Colab、Cloudflare Tunnel 或 Vercel AI Gateway。</div></div><span id="hfBadge" class="pill">檢查中</span></div>
+  card.innerHTML=`<div class="section-title"><div><h2>☁️ 1.4.2 Hugging Face ZeroGPU｜Gemma 4 E4B</h2><div class="muted">固定雲端 GPU；不再需要 Colab、Cloudflare Tunnel 或 Vercel AI Gateway。</div></div><span id="hfBadge" class="pill">檢查中</span></div>
   <div class="form" style="margin-top:12px"><div class="field full"><label>ZeroGPU Space</label><input id="hfSpaceUrl" value="${FALLBACK_SPACE}"></div></div>
-  <div class="actions" style="margin-top:10px"><a id="hfRepoLink" class="btn ghost" href="https://huggingface.co/new-space" target="_blank" rel="noopener">開啟 Hugging Face Space</a><button id="hfHealth" class="btn secondary">🩺 檢查 ZeroGPU</button><button id="hfRun" class="btn primary">🚀 Gemma 4 E4B 辨識本張發票</button><button id="hfBuyer" class="btn secondary">🎯 只辨識買受人 8 格</button></div>
+  <div class="actions" style="margin-top:10px"><a id="hfRepoLink" class="btn ghost" href="https://huggingface.co/new-space" target="_blank" rel="noopener">開啟 Hugging Face Space</a><button id="hfHealth" class="btn secondary">🩺 檢查 ZeroGPU</button><button id="hfRun" class="btn primary">🚀 Gemma 4 E4B 辨識本張發票</button><button id="hfBuyer" class="btn secondary">🎯 只辨識買受人 8 格</button><button id="hfReverseTax" class="btn secondary">↩️ 總額反算未稅／稅額</button></div>
   <div id="hfStatus" class="info" style="margin-top:10px">正在讀取自動部署設定。</div><div id="hfMeta" class="muted small" style="margin-top:8px"></div>`;
   const companyCard=$('companyName')?.closest('.card');
   if(companyCard)companyCard.insertAdjacentElement('afterend',card); else document.querySelector('.card')?.insertAdjacentElement('afterend',card);
@@ -94,6 +94,50 @@
     return true;
   }
 
+  function moneyNumber(v){
+    const s=String(v??'').replace(/[,，\s$NTnt元]/g,'');
+    if(!s||!/^-?\d+(?:\.\d+)?$/.test(s))return NaN;
+    return Number(s);
+  }
+
+  function reverseGrossToNetTax(){
+    const grossEl=$('gross'),netEl=$('net'),taxEl=$('tax');
+    if(!grossEl||!netEl||!taxEl){setStatus('warn','找不到未稅／稅額／總額欄位。');return null}
+    const gross=moneyNumber(grossEl.value);
+    if(!Number.isFinite(gross)||gross<0){setStatus('warn','請先輸入或辨識有效的「總額」。');grossEl.focus();return null}
+
+    // 財政部 5% 含稅反算：稅額 = 總額 / 1.05 * 0.05，元以下四捨五入；未稅 = 總額 - 稅額。
+    const roundedGross=Math.round(gross);
+    const tax=Math.round((roundedGross/1.05)*0.05);
+    const net=roundedGross-tax;
+    const source='5%含稅反算';
+
+    const netHuman=netEl.dataset.humanEdited==='1'&&String(netEl.value||'').trim()!=='';
+    const taxHuman=taxEl.dataset.humanEdited==='1'&&String(taxEl.value||'').trim()!=='';
+    const wroteNet=netHuman?false:put('net',net,source);
+    const wroteTax=taxHuman?false:put('tax',tax,source);
+
+    try{if(typeof validateRecognition==='function')validateRecognition()}catch{}
+    try{netEl.dispatchEvent(new Event('change',{bubbles:true}));taxEl.dispatchEvent(new Event('change',{bubbles:true}));}catch{}
+
+    if(netHuman||taxHuman){
+      setStatus('warn',`已依總額 ${roundedGross.toLocaleString('zh-TW')} 反算：未稅 ${net.toLocaleString('zh-TW')}、稅額 ${tax.toLocaleString('zh-TW')}；人工修改過的欄位維持原值。`);
+    }else{
+      setStatus('ok',`✓ 5% 含稅反算完成：總額 ${roundedGross.toLocaleString('zh-TW')} = 未稅 ${net.toLocaleString('zh-TW')} + 稅額 ${tax.toLocaleString('zh-TW')}。`);
+    }
+    meta.textContent='公式：稅額＝總額÷1.05×0.05（四捨五入）；未稅＝總額－稅額｜來源：財政部5%含稅反算';
+    return {gross:roundedGross,net,tax,wroteNet,wroteTax};
+  }
+
+  function maybeOfferReverseAmounts(){
+    const gross=moneyNumber($('gross')?.value);
+    const net=moneyNumber($('net')?.value);
+    const tax=moneyNumber($('tax')?.value);
+    if(Number.isFinite(gross)&&gross>=0&&(!Number.isFinite(net)||!Number.isFinite(tax))){
+      setStatus('warn','⚠ 未稅／稅額／總額尚未完整。已取得總額，可按「↩️ 總額反算未稅／稅額」依 5% 營業稅補齊。');
+    }
+  }
+
   function mapInvoice(resp){
     const first=resp?.results?.[0];if(!first)throw new Error('ZeroGPU 未回傳發票結果');
     const d=first.data||{},src='HF-ZeroGPU:Gemma4E4B';
@@ -102,6 +146,7 @@
     put('date',String(d.invoice_date||'').slice(0,10),src);put('seller',d.seller_tax_id,src);put('buyer',d.buyer_tax_id,src);put('net',d.sales_amount,src);put('tax',d.tax_amount,src);put('gross',d.total_amount,src);put('sellerName',d.seller_name,src);
     if($('raw')&&first.raw_text)$('raw').value=($('raw').value?$('raw').value+'\n\n--- ZeroGPU Gemma 4 E4B ---\n':'')+first.raw_text;
     try{if(typeof validateRecognition==='function')validateRecognition()}catch{}
+    setTimeout(maybeOfferReverseAmounts,0);
     return {first,d};
   }
 
@@ -130,11 +175,12 @@
     try{
       const dataUrl=await fileToDataURL(file),t=performance.now();const resp=await callGradio('invoice_api',[dataUrl],240000);const {d}=mapInvoice(resp);const ms=Math.round(performance.now()-t);
       badge.textContent='整張完成';setStatus('ok',`✓ ZeroGPU 整張辨識完成${d.buyer_tax_id?'；買受人 '+d.buyer_tax_id:''}${d.seller_tax_id?'；賣方 '+d.seller_tax_id:''}。正在準備 8 格交叉驗證。`);meta.textContent=`Gemma 4 E4B｜${ms}ms`;
+      maybeOfferReverseAmounts();
       await runBuyer();return resp;
     }catch(e){badge.textContent='Gemma 失敗';setStatus('warn','⚠ ZeroGPU 辨識失敗：'+(e.message||e)+'。本地 OCR 結果仍保留。');return null}
   }
 
-  $('hfHealth').onclick=health;$('hfRun').onclick=runInvoice;$('hfBuyer').onclick=runBuyer;
+  $('hfHealth').onclick=health;$('hfRun').onclick=runInvoice;$('hfBuyer').onclick=runBuyer;$('hfReverseTax').onclick=reverseGrossToNetTax;
   const baseScan=scanBtn.onclick;scanBtn.onclick=async function(){if(typeof baseScan==='function')await baseScan.call(scanBtn);await runInvoice()};
   setTimeout(async()=>{const c=await loadConfig();if(c?.configured&&c?.space_url)await health()},700);
 })();
