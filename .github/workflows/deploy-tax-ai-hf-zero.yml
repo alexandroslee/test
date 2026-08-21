@@ -70,19 +70,33 @@ jobs:
               owner_slug = owner.lower().replace('_','-')
               report['space_url'] = f'https://{owner_slug}-tax-ai-zerogpu.hf.space'
               report['stage'] = 'AUTH_OK'
+
+              # Free personal accounts can still create ZeroGPU Gradio Spaces,
+              # but creating a cpu-basic Gradio Space first now returns HTTP 402.
+              # Therefore resolve a ZeroGPU flavor BEFORE repository creation and
+              # pass it to create_repo(space_hardware=...).
+              hardware_list = api.list_spaces_hardware()
+              zero_names = [h.name for h in hardware_list if 'zero' in h.name.lower()]
+              report['available_zero_hardware'] = zero_names
+              print('Available ZeroGPU hardware:', zero_names)
+              if not zero_names:
+                  raise RuntimeError('This Hugging Face account currently exposes no ZeroGPU hardware flavor. Check verified email, account age/good standing, or plan eligibility.')
+              zero_names.sort(key=lambda x: (('xlarge' in x.lower()), len(x), x))
+              chosen = zero_names[0]
+              report['requested_hardware'] = chosen
               save()
 
               api.create_repo(
                   repo_id=repo_id,
                   repo_type='space',
                   space_sdk='gradio',
+                  space_hardware=chosen,
                   exist_ok=True,
                   private=False,
               )
-              report['stage'] = 'SPACE_CREATED'
+              report['stage'] = 'SPACE_CREATED_ZERO_GPU'
               save()
 
-              # Upload first so the repo is a valid Gradio Space before requesting ZeroGPU.
               api.upload_folder(
                   folder_path='hf-space-tax-ai',
                   repo_id=repo_id,
@@ -92,20 +106,7 @@ jobs:
               report['stage'] = 'CODE_UPLOADED'
               save()
 
-              # Never hard-code the ZeroGPU flavor. Ask the Hub which hardware is available
-              # to this account and select the current zero* flavor dynamically.
-              hardware_list = api.list_spaces_hardware()
-              zero_names = [h.name for h in hardware_list if 'zero' in h.name.lower()]
-              report['available_zero_hardware'] = zero_names
-              print('Available ZeroGPU hardware:', zero_names)
-              if not zero_names:
-                  raise RuntimeError('This Hugging Face account currently exposes no ZeroGPU hardware flavor. Check account eligibility (verified email, account age/good standing) or plan.')
-
-              # Prefer the shortest/default ZeroGPU flavor when several are returned.
-              zero_names.sort(key=lambda x: (('xlarge' in x.lower()), len(x), x))
-              chosen = zero_names[0]
-              report['requested_hardware'] = chosen
-              runtime = api.request_space_hardware(repo_id=repo_id, hardware=chosen)
+              runtime = api.get_space_runtime(repo_id=repo_id)
               report['stage'] = str(runtime.stage)
               report['hardware'] = str(runtime.hardware) if runtime.hardware else None
               report['requested_hardware'] = str(runtime.requested_hardware) if runtime.requested_hardware else chosen
@@ -121,7 +122,6 @@ jobs:
               report['hardware'] = str(runtime.hardware) if runtime.hardware else None
               report['requested_hardware'] = str(runtime.requested_hardware) if runtime.requested_hardware else chosen
 
-              # Check published Gradio API without consuming ZeroGPU quota.
               import requests
               base = report['space_url'].rstrip('/')
               r = requests.get(base + '/gradio_api/openapi.json', timeout=60)
@@ -141,7 +141,7 @@ jobs:
           except Exception as e:
               report['error'] = f'{type(e).__name__}: {e}'
               report['traceback_tail'] = traceback.format_exc()[-4000:]
-              if report.get('stage') in ('STARTING','AUTH_OK','SPACE_CREATED','CODE_UPLOADED'):
+              if report.get('stage') in ('STARTING','AUTH_OK','SPACE_CREATED_ZERO_GPU','CODE_UPLOADED'):
                   report['stage'] = 'FAILED_' + report['stage']
               save()
           PY
