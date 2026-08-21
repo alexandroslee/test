@@ -3,12 +3,15 @@
   "repo_id": "AlexandrosLee/tax-ai-zerogpu",
   "repo_url": "https://huggingface.co/spaces/AlexandrosLee/tax-ai-zerogpu",
   "space_url": "https://alexandroslee-tax-ai-zerogpu.hf.space",
-  "stage": "FAILED_AUTH_OK",
+  "stage": "RUNTIME_ERROR",
   "hardware": null,
-  "requested_hardware": null,
-  "available_zero_hardware": [],
-  "deployed_at_unix": 1787346462,
-  "error": "HfHubHTTPError: Client error '402 Payment Required' for url 'https://huggingface.co/api/repos/create' (Request ID: Root=1-6a88be1e-1540ebeb06b687b629685695;6b1d6be4-63ee-4ab2-94f5-69243a57b47d)\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402\n\nStatic Spaces are free for everyone, but hosting Gradio and Docker Spaces on free cpu-basic requires a PRO subscription. Subscribe at https://huggingface.co/pro",
+  "requested_hardware": "zero-a10g",
+  "available_zero_hardware": [
+    "zero-a10g"
+  ],
+  "deployed_at_unix": 1787346542,
+  "error": "RuntimeError: Space OpenAPI unavailable: HTTP 503: Your space is in error, check its status on hf.co",
   "hf_owner": "AlexandrosLee",
-  "traceback_tail": "Traceback (most recent call last):\n  File \"/home/runner/.local/lib/python3.12/site-packages/huggingface_hub/utils/_http.py\", line 798, in hf_raise_for_status\n    response.raise_for_status()\n  File \"/home/runner/.local/lib/python3.12/site-packages/httpx/_models.py\", line 829, in raise_for_status\n    raise HTTPStatusError(message, request=request, response=self)\nhttpx.HTTPStatusError: Client error '402 Payment Required' for url 'https://huggingface.co/api/repos/create'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"<stdin>\", line 45, in <module>\n  File \"/home/runner/.local/lib/python3.12/site-packages/huggingface_hub/utils/_deprecation.py\", line 101, in inner_f\n    return f(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/.local/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py\", line 88, in _inner_fn\n    return fn(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/.local/lib/python3.12/site-packages/huggingface_hub/hf_api.py\", line 4853, in create_repo\n    raise err\n  File \"/home/runner/.local/lib/python3.12/site-packages/huggingface_hub/hf_api.py\", line 4837, in create_repo\n    hf_raise_for_status(r)\n  File \"/home/runner/.local/lib/python3.12/site-packages/huggingface_hub/utils/_http.py\", line 928, in hf_raise_for_status\n    raise _format(HfHubHTTPError, str(e), response) from e\nhuggingface_hub.errors.HfHubHTTPError: Client error '402 Payment Required' for url 'https://huggingface.co/api/repos/create' (Request ID: Root=1-6a88be1e-1540ebeb06b687b629685695;6b1d6be4-63ee-4ab2-94f5-69243a57b47d)\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402\n\nStatic Spaces are free for everyone, but hosting Gradio and Docker Spaces on free cpu-basic requires a PRO subscription. Subscribe at https://huggingface.co/pro\n"
+  "openapi_http": 503,
+  "traceback_tail": "Traceback (most recent call last):\n  File \"<stdin>\", line 100, in <module>\nRuntimeError: Space OpenAPI unavailable: HTTP 503: Your space is in error, check its status on hf.co\n"
 }
