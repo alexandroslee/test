@@ -1,4 +1,4 @@
-# Diagnostic refresh after torchvision 0.24.1 fix.
+# Diagnostic refresh after ZeroGPU rebuild.
 name: Diagnose Tax AI Hugging Face Space
 
 on:
