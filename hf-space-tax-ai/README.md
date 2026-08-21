@@ -1,6 +1,6 @@
 ---
 title: Tax AI ZeroGPU
-e moji: 🧾
+emoji: 🧾
 colorFrom: blue
 colorTo: indigo
 sdk: gradio
