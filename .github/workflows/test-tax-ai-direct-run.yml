@@ -1,0 +1,70 @@
+name: Verify Tax AI Gradio direct-run fallback
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/test-tax-ai-direct-run.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-noto-cjk
+          python -m pip install requests pillow
+      - name: Call direct run API anonymously
+        run: |
+          python - <<'PY'
+          import base64, io, json, time
+          from pathlib import Path
+          import requests
+          from PIL import Image, ImageDraw, ImageFont
+
+          img=Image.new('RGB',(900,560),'white')
+          d=ImageDraw.Draw(img)
+          fp='/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc'
+          f=ImageFont.truetype(fp,54)
+          d.text((50,40),'電子發票證明聯',font=f,fill='black')
+          d.text((50,125),'發票號碼 YK-29683035',font=f,fill='black')
+          d.text((50,215),'銷售額 1000',font=f,fill='black')
+          d.text((50,305),'稅額 50',font=f,fill='black')
+          d.text((50,395),'總計 1050',font=f,fill='black')
+          b=io.BytesIO();img.save(b,format='PNG')
+          data='data:image/png;base64,'+base64.b64encode(b.getvalue()).decode()
+          base='https://alexandroslee-tax-ai-zerogpu.hf.space'
+          out={'url':base+'/gradio_api/run/invoice_api','tested_at_unix':int(time.time())}
+          t=time.time()
+          try:
+              r=requests.post(out['url'],json={'image_data':data},timeout=180)
+              out['status']=r.status_code
+              out['body']=r.text[:12000]
+              if r.ok:
+                  j=r.json();out['output']=j.get('output')
+                  dd=((out['output'] or {}).get('results') or [{}])[0].get('data',{}) if isinstance(out['output'],dict) else {}
+                  out['amount_match']=(dd.get('sales_amount')==1000 and dd.get('tax_amount')==50 and dd.get('total_amount')==1050)
+          except Exception as e:
+              out['error']=f'{type(e).__name__}: {e}'
+          out['elapsed_sec']=round(time.time()-t,2)
+          Path('tax-ai-v1/hf-direct-run-test.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+      - name: Commit result
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tax-ai-v1/hf-direct-run-test.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Record Gradio direct-run fallback test'
+            git push origin HEAD:gh-pages
+          fi
