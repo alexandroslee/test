@@ -1,0 +1,104 @@
+name: Test Tax AI ZeroGPU Gemma Vision
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/test-tax-ai-hf-vision.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  vision-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+
+      - name: Install test dependencies
+        run: python -m pip install requests pillow
+
+      - name: Generate eight-cell test image and call Gemma ZeroGPU
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import base64, io, json, os, time
+          from pathlib import Path
+          import requests
+          from PIL import Image, ImageDraw, ImageFont
+
+          expected='54169882'
+          W,H=960,180
+          img=Image.new('RGB',(W,H),'white')
+          d=ImageDraw.Draw(img)
+          # Strong invoice-like 8-cell border.
+          for i in range(9):
+              x=i*W//8
+              d.line((x,5,x,H-5),fill='black',width=3)
+          d.line((0,5,W,5),fill='black',width=3)
+          d.line((0,H-5,W,H-5),fill='black',width=3)
+          try:
+              font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',92)
+          except Exception:
+              font=ImageFont.load_default()
+          for i,ch in enumerate(expected):
+              left=i*W//8; right=(i+1)*W//8
+              box=d.textbbox((0,0),ch,font=font)
+              tw,th=box[2]-box[0],box[3]-box[1]
+              x=left+(right-left-tw)//2
+              y=(H-th)//2-8
+              d.text((x,y),ch,font=font,fill='black')
+          buf=io.BytesIO(); img.save(buf,format='PNG')
+          png=buf.getvalue()
+          data_url='data:image/png;base64,'+base64.b64encode(png).decode()
+          Path('tax-ai-v1/zerogpu-test-54169882.png').write_bytes(png)
+
+          base='https://alexandroslee-tax-ai-zerogpu.hf.space'
+          token=os.environ.get('HF_TOKEN','')
+          headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'}
+          out={'expected':expected,'space_url':base,'tested_at_unix':int(time.time())}
+          start=time.time()
+          try:
+              r=requests.post(base+'/gradio_api/call/buyer_ban_api',headers=headers,json={'data':[data_url]},timeout=120)
+              out['submit_status']=r.status_code; out['submit_body']=r.text[:2000]
+              r.raise_for_status()
+              eid=r.json()['event_id']; out['event_id']=eid
+              rr=requests.get(base+f'/gradio_api/call/buyer_ban_api/{eid}',headers={'Authorization':f'Bearer {token}'},timeout=180)
+              out['result_status']=rr.status_code; out['result_body']=rr.text[:10000]
+              # Parse SSE complete payload.
+              payload=None
+              for line in rr.text.splitlines():
+                  if line.startswith('data:'):
+                      try:
+                          val=json.loads(line[5:].strip())
+                          if isinstance(val,list) and val: payload=val[0]
+                      except Exception: pass
+              out['result']=payload
+              got=(payload or {}).get('buyer_tax_id') if isinstance(payload,dict) else None
+              out['recognized']=got
+              out['match']=got==expected
+          except Exception as e:
+              out['error']=f'{type(e).__name__}: {e}'
+          out['elapsed_sec']=round(time.time()-start,2)
+          Path('tax-ai-v1/hf-zerogpu-vision-test.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+
+      - name: Commit vision test result
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tax-ai-v1/hf-zerogpu-vision-test.json tax-ai-v1/zerogpu-test-54169882.png
+          if git diff --cached --quiet; then
+            echo 'Test result unchanged.'
+          else
+            git commit -m 'Record ZeroGPU Gemma vision smoke test'
+            git push origin HEAD:gh-pages
+          fi
