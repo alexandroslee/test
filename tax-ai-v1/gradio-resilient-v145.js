@@ -1,6 +1,6 @@
 (function(){
-  if(window.__taxAiGradioResilient145)return;
-  window.__taxAiGradioResilient145=true;
+  if(window.__taxAiGradioResilient146)return;
+  window.__taxAiGradioResilient146=true;
 
   const nativeFetch=window.fetch.bind(window);
   const pending=new Map();
@@ -14,7 +14,7 @@
     const h=new Headers();
     try{resp.headers.forEach((v,k)=>h.set(k,v))}catch{}
     h.set('content-type','text/event-stream; charset=utf-8');
-    h.set('x-tax-ai-transport','gradio-resilient-v145');
+    h.set('x-tax-ai-transport','gradio-resilient-v146');
     return h;
   }
 
@@ -49,32 +49,30 @@
     return {ok:false,lastData,errorData};
   }
 
-  function syncBody(apiName,data){
-    const first=Array.isArray(data)?data[0]:data;
-    if(apiName==='health_api')return {_x:first??'health'};
-    if(apiName==='invoice_api'||apiName==='buyer_ban_api')return {image_data:first};
-    return {data:Array.isArray(data)?data:[data]};
-  }
-
   async function directRun(base,apiName,data,signal){
+    const payload=Array.isArray(data)?data:[data];
     const r=await nativeFetch(`${base}/gradio_api/run/${apiName}`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(syncBody(apiName,data)),
+      body:JSON.stringify({data:payload}),
       signal
     });
-    if(!r.ok)throw new Error(`direct run HTTP ${r.status}`);
+    if(!r.ok){
+      const body=await r.text().catch(()=>"");
+      throw new Error(`direct run HTTP ${r.status}${body?`：${body.slice(0,300)}`:''}`);
+    }
     const j=await r.json();
-    if(!Object.prototype.hasOwnProperty.call(j,'output'))throw new Error('direct run 沒有 output');
-    return {response:r,output:j.output};
+    let output;
+    if(Object.prototype.hasOwnProperty.call(j,'output'))output=j.output;
+    else if(Array.isArray(j.data)&&j.data.length)output=j.data[0];
+    else throw new Error('direct run 沒有 output/data');
+    return {response:r,output};
   }
 
   window.fetch=async function(input,init){
     const url=urlOf(input);
     const method=String(init?.method||((input&&input.method)||'GET')).toUpperCase();
 
-    // Remember the original payload for a named Gradio call so the result GET
-    // can transparently retry through /run without asking the user to re-upload.
     const submitMatch=url.match(/^(https:\/\/[^/]+)\/gradio_api\/call\/([^/?#]+)$/i);
     if(submitMatch&&method==='POST'){
       try{
@@ -97,11 +95,7 @@
 
       const text=await original.clone().text();
       const parsed=parseCompleteSse(text);
-      if(parsed.ok){
-        // Normalize all legal Gradio event ordering into the exact format the
-        // existing V1.4 client expects.
-        return canonicalComplete(parsed.payload,original);
-      }
+      if(parsed.ok)return canonicalComplete(parsed.payload,original);
 
       const saved=pending.get(apiName);
       if(saved&&Date.now()-saved.at<10*60*1000){
@@ -109,7 +103,7 @@
           const direct=await directRun(saved.base,apiName,saved.data,init?.signal);
           return canonicalComplete(direct.output,direct.response);
         }catch(e){
-          console.warn('[TaxAI V1.4.5] Gradio fallback failed',apiName,e,parsed.errorData||parsed.lastData||text.slice(-800));
+          console.warn('[TaxAI V1.4.6] Gradio fallback failed',apiName,e,parsed.errorData||parsed.lastData||text.slice(-800));
         }
       }
       return new Response(text,{status:original.status,statusText:original.statusText,headers:original.headers});
@@ -118,5 +112,5 @@
     return nativeFetch(input,init);
   };
 
-  console.info('[TaxAI] Gradio Resilient Adapter V1.4.5 active');
+  console.info('[TaxAI] Gradio Resilient Adapter V1.4.6 active');
 })();
