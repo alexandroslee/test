@@ -1,4 +1,3 @@
-# Triggered after HF_TOKEN was configured on 2026-08-22.
 name: Deploy Tax AI to Hugging Face ZeroGPU
 
 on:
@@ -21,112 +20,141 @@ jobs:
           ref: gh-pages
           fetch-depth: 0
 
-      - name: Verify Hugging Face deployment credential
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          if [ -z "$HF_TOKEN" ]; then
-            echo "::error::Missing repository secret HF_TOKEN. Add a Hugging Face write token as GitHub Actions secret HF_TOKEN, then re-run this workflow."
-            exit 2
-          fi
-
-      - name: Install Hugging Face Hub client
+      - name: Install deployment dependencies
         run: python -m pip install --upgrade 'huggingface_hub>=0.35' requests
 
-      - name: Create/update ZeroGPU Space and upload application
-        id: deploy
+      - name: Deploy Space and write diagnostic status
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python - <<'PY'
-          import json, os, time
+          import json, os, time, traceback
           from pathlib import Path
           from huggingface_hub import HfApi
 
-          token = os.environ['HF_TOKEN']
-          api = HfApi(token=token)
-          me = api.whoami()
-          owner = me.get('name') or me.get('fullname')
-          if not owner:
-              raise RuntimeError(f'Cannot determine Hugging Face username from token: {me}')
-
-          repo_id = f'{owner}/tax-ai-zerogpu'
-          print('HF account:', owner)
-          print('Space:', repo_id)
-
-          api.create_repo(
-              repo_id=repo_id,
-              repo_type='space',
-              space_sdk='gradio',
-              exist_ok=True,
-              private=False,
-          )
-
-          runtime = api.request_space_hardware(repo_id=repo_id, hardware='zero-a10g')
-          print('Requested hardware:', runtime.requested_hardware)
-
-          api.upload_folder(
-              folder_path='hf-space-tax-ai',
-              repo_id=repo_id,
-              repo_type='space',
-              commit_message='Deploy Tax AI Gemma 4 E4B ZeroGPU',
-          )
-
-          runtime = api.get_space_runtime(repo_id=repo_id)
-          owner_slug = owner.lower().replace('_', '-')
-          space_url = f'https://{owner_slug}-tax-ai-zerogpu.hf.space'
-          repo_url = f'https://huggingface.co/spaces/{repo_id}'
-          config = {
-              'configured': True,
-              'repo_id': repo_id,
-              'repo_url': repo_url,
-              'space_url': space_url,
-              'stage': str(runtime.stage),
-              'hardware': str(runtime.hardware) if runtime.hardware else None,
-              'requested_hardware': str(runtime.requested_hardware) if runtime.requested_hardware else 'zero-a10g',
+          out = Path('tax-ai-v1/hf-space.json')
+          report = {
+              'configured': False,
+              'repo_id': None,
+              'repo_url': 'https://huggingface.co/new-space',
+              'space_url': None,
+              'stage': 'STARTING',
+              'hardware': None,
+              'requested_hardware': None,
+              'available_zero_hardware': [],
               'deployed_at_unix': int(time.time()),
+              'error': None,
           }
-          Path('tax-ai-v1/hf-space.json').write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          print(json.dumps(config, ensure_ascii=False, indent=2))
+
+          def save():
+              out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+              print(json.dumps(report, ensure_ascii=False, indent=2))
+
+          token = os.environ.get('HF_TOKEN','').strip()
+          if not token:
+              report['stage'] = 'AUTH_MISSING'
+              report['error'] = 'GitHub Actions secret HF_TOKEN is missing or empty.'
+              save()
+              raise SystemExit(0)
+
+          api = HfApi(token=token)
+          try:
+              me = api.whoami()
+              owner = me.get('name') or me.get('fullname')
+              if not owner:
+                  raise RuntimeError(f'Cannot determine Hugging Face username from token: {me}')
+              report['hf_owner'] = owner
+              repo_id = f'{owner}/tax-ai-zerogpu'
+              report['repo_id'] = repo_id
+              report['repo_url'] = f'https://huggingface.co/spaces/{repo_id}'
+              owner_slug = owner.lower().replace('_','-')
+              report['space_url'] = f'https://{owner_slug}-tax-ai-zerogpu.hf.space'
+              report['stage'] = 'AUTH_OK'
+              save()
+
+              api.create_repo(
+                  repo_id=repo_id,
+                  repo_type='space',
+                  space_sdk='gradio',
+                  exist_ok=True,
+                  private=False,
+              )
+              report['stage'] = 'SPACE_CREATED'
+              save()
+
+              # Upload first so the repo is a valid Gradio Space before requesting ZeroGPU.
+              api.upload_folder(
+                  folder_path='hf-space-tax-ai',
+                  repo_id=repo_id,
+                  repo_type='space',
+                  commit_message='Deploy Tax AI Gemma 4 E4B ZeroGPU',
+              )
+              report['stage'] = 'CODE_UPLOADED'
+              save()
+
+              # Never hard-code the ZeroGPU flavor. Ask the Hub which hardware is available
+              # to this account and select the current zero* flavor dynamically.
+              hardware_list = api.list_spaces_hardware()
+              zero_names = [h.name for h in hardware_list if 'zero' in h.name.lower()]
+              report['available_zero_hardware'] = zero_names
+              print('Available ZeroGPU hardware:', zero_names)
+              if not zero_names:
+                  raise RuntimeError('This Hugging Face account currently exposes no ZeroGPU hardware flavor. Check account eligibility (verified email, account age/good standing) or plan.')
+
+              # Prefer the shortest/default ZeroGPU flavor when several are returned.
+              zero_names.sort(key=lambda x: (('xlarge' in x.lower()), len(x), x))
+              chosen = zero_names[0]
+              report['requested_hardware'] = chosen
+              runtime = api.request_space_hardware(repo_id=repo_id, hardware=chosen)
+              report['stage'] = str(runtime.stage)
+              report['hardware'] = str(runtime.hardware) if runtime.hardware else None
+              report['requested_hardware'] = str(runtime.requested_hardware) if runtime.requested_hardware else chosen
+              save()
+
+              try:
+                  api.wait_for_space(repo_id=repo_id, timeout=1200)
+              except Exception as e:
+                  report['wait_warning'] = repr(e)
+
+              runtime = api.get_space_runtime(repo_id=repo_id)
+              report['stage'] = str(runtime.stage)
+              report['hardware'] = str(runtime.hardware) if runtime.hardware else None
+              report['requested_hardware'] = str(runtime.requested_hardware) if runtime.requested_hardware else chosen
+
+              # Check published Gradio API without consuming ZeroGPU quota.
+              import requests
+              base = report['space_url'].rstrip('/')
+              r = requests.get(base + '/gradio_api/openapi.json', timeout=60)
+              report['openapi_http'] = r.status_code
+              if r.status_code != 200:
+                  raise RuntimeError(f'Space OpenAPI unavailable: HTTP {r.status_code}: {r.text[:500]}')
+              text = r.text
+              missing = [x for x in ('health_api','invoice_api','buyer_ban_api') if x not in text]
+              report['missing_api_routes'] = missing
+              if missing:
+                  raise RuntimeError('Missing Gradio API routes: ' + ', '.join(missing))
+
+              report['configured'] = True
+              report['stage'] = 'RUNNING_API_READY'
+              report['error'] = None
+              save()
+          except Exception as e:
+              report['error'] = f'{type(e).__name__}: {e}'
+              report['traceback_tail'] = traceback.format_exc()[-4000:]
+              if report.get('stage') in ('STARTING','AUTH_OK','SPACE_CREATED','CODE_UPLOADED'):
+                  report['stage'] = 'FAILED_' + report['stage']
+              save()
           PY
 
-      - name: Commit resolved Space URL back to GitHub Pages
+      - name: Commit diagnostic/deployment status back to GitHub Pages
+        if: always()
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tax-ai-v1/hf-space.json
           if git diff --cached --quiet; then
-            echo 'Space config unchanged.'
+            echo 'Status unchanged.'
           else
-            git commit -m 'Update deployed Hugging Face ZeroGPU endpoint'
+            git commit -m 'Update Hugging Face ZeroGPU deployment status'
             git push origin HEAD:gh-pages
           fi
-
-      - name: Wait for Space startup and test API schema
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          python - <<'PY'
-          import json, os, requests
-          from huggingface_hub import HfApi
-
-          cfg = json.load(open('tax-ai-v1/hf-space.json', encoding='utf-8'))
-          api = HfApi(token=os.environ['HF_TOKEN'])
-          repo_id = cfg['repo_id']
-          print('Waiting for:', repo_id)
-          try:
-              api.wait_for_space(repo_id=repo_id, timeout=1200)
-          except Exception as e:
-              print('wait_for_space:', repr(e))
-
-          base = cfg['space_url'].rstrip('/')
-          r = requests.get(base + '/gradio_api/openapi.json', timeout=60)
-          print('OpenAPI HTTP', r.status_code)
-          if r.status_code != 200:
-              raise RuntimeError(f'Space OpenAPI unavailable: HTTP {r.status_code}: {r.text[:500]}')
-          text = r.text
-          for required in ('health_api', 'invoice_api', 'buyer_ban_api'):
-              if required not in text:
-                  raise RuntimeError(f'Missing Gradio API endpoint: {required}')
-          print('SUCCESS: ZeroGPU Space is online and all Tax AI API routes are published.')
-          PY
