@@ -1,3 +1,4 @@
+# Trigger 2026-08-22: sync official Gemma 4 multimodal OCR path.
 name: Sync Tax AI ZeroGPU Space
 
 on:
