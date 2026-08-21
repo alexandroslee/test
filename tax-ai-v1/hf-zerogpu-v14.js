@@ -1,24 +1,26 @@
 (function(){
   const $=id=>document.getElementById(id);
   const scanBtn=$('scan'); if(!scanBtn)return;
-  const SPACE_DEFAULT='https://alexandroslee-tax-ai-zerogpu.hf.space';
-  const SPACE_REPO='https://huggingface.co/spaces/alexandroslee/tax-ai-zerogpu';
+
+  const FALLBACK_SPACE='https://alexandroslee-tax-ai-zerogpu.hf.space';
+  const CONFIG_URL='../tax-ai-v1/hf-space.json';
+  let resolvedRepo='https://huggingface.co/new-space';
 
   const subtitle=document.querySelector('.top .muted');
-  if(subtitle)subtitle.textContent='V1.4｜GitHub Pages＋Hugging Face ZeroGPU＋Gemma 4 E4B';
+  if(subtitle)subtitle.textContent='V1.4.1｜GitHub Pages＋Hugging Face ZeroGPU＋Gemma 4 E4B';
   const hero=document.querySelector('.hero');
-  if(hero)hero.innerHTML='<b>V1.4：</b>真正雲端版。免 Colab、免 Tunnel、免 OpenAI API。GitHub Pages 直接呼叫 <b>Hugging Face ZeroGPU → Gemma 4 E4B</b>；本地格線辨識與雲端 VLM 交叉驗證，人工確認後才套用。';
-  scanBtn.textContent='✨ V1.4：本地辨識＋ZeroGPU Gemma 4 E4B';
+  if(hero)hero.innerHTML='<b>V1.4.1：</b>真正雲端版。免 Colab、免 Tunnel、免 OpenAI API。GitHub Pages 直接呼叫 <b>Hugging Face ZeroGPU → Gemma 4 E4B</b>；Space 網址由自動部署流程回寫，不再硬猜帳號名稱。';
+  scanBtn.textContent='✨ V1.4.1：本地辨識＋ZeroGPU Gemma 4 E4B';
 
   const card=document.createElement('div'); card.className='card section'; card.id='hfZeroGpuCard';
-  card.innerHTML=`<div class="section-title"><div><h2>☁️ 1.4 Hugging Face ZeroGPU｜Gemma 4 E4B</h2><div class="muted">固定雲端 GPU；不再需要 Colab、Cloudflare Tunnel 或 Vercel AI Gateway。</div></div><span id="hfBadge" class="pill">檢查中</span></div>
-  <div class="form" style="margin-top:12px"><div class="field full"><label>ZeroGPU Space</label><input id="hfSpaceUrl" value="${SPACE_DEFAULT}"></div></div>
-  <div class="actions" style="margin-top:10px"><a class="btn ghost" href="${SPACE_REPO}" target="_blank" rel="noopener">開啟 Hugging Face Space</a><button id="hfHealth" class="btn secondary">🩺 檢查 ZeroGPU</button><button id="hfRun" class="btn primary">🚀 Gemma 4 E4B 辨識本張發票</button><button id="hfBuyer" class="btn secondary">🎯 只辨識買受人 8 格</button></div>
-  <div id="hfStatus" class="info" style="margin-top:10px">正在檢查 Hugging Face Space。</div><div id="hfMeta" class="muted small" style="margin-top:8px"></div>`;
+  card.innerHTML=`<div class="section-title"><div><h2>☁️ 1.4.1 Hugging Face ZeroGPU｜Gemma 4 E4B</h2><div class="muted">固定雲端 GPU；不再需要 Colab、Cloudflare Tunnel 或 Vercel AI Gateway。</div></div><span id="hfBadge" class="pill">檢查中</span></div>
+  <div class="form" style="margin-top:12px"><div class="field full"><label>ZeroGPU Space</label><input id="hfSpaceUrl" value="${FALLBACK_SPACE}"></div></div>
+  <div class="actions" style="margin-top:10px"><a id="hfRepoLink" class="btn ghost" href="https://huggingface.co/new-space" target="_blank" rel="noopener">開啟 Hugging Face Space</a><button id="hfHealth" class="btn secondary">🩺 檢查 ZeroGPU</button><button id="hfRun" class="btn primary">🚀 Gemma 4 E4B 辨識本張發票</button><button id="hfBuyer" class="btn secondary">🎯 只辨識買受人 8 格</button></div>
+  <div id="hfStatus" class="info" style="margin-top:10px">正在讀取自動部署設定。</div><div id="hfMeta" class="muted small" style="margin-top:8px"></div>`;
   const companyCard=$('companyName')?.closest('.card');
   if(companyCard)companyCard.insertAdjacentElement('afterend',card); else document.querySelector('.card')?.insertAdjacentElement('afterend',card);
 
-  const urlEl=$('hfSpaceUrl'),badge=$('hfBadge'),st=$('hfStatus'),meta=$('hfMeta');
+  const urlEl=$('hfSpaceUrl'),badge=$('hfBadge'),st=$('hfStatus'),meta=$('hfMeta'),repoLink=$('hfRepoLink');
   const fields=['track','number','date','seller','buyer','net','tax','gross','sellerName'];
   fields.forEach(id=>{const el=$(id);if(el){el.addEventListener('input',()=>{el.dataset.humanEdited='1'})}});
 
@@ -27,11 +29,33 @@
   function getFile(){try{if(typeof state!=='undefined'&&state.file)return state.file}catch{}for(const id of ['camera','purchase','sales']){const f=$(id)?.files?.[0];if(f)return f}return null}
   function fileToDataURL(file){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;r.readAsDataURL(file)})}
 
+  async function loadConfig(){
+    try{
+      const r=await fetch(`${CONFIG_URL}?t=${Date.now()}`,{cache:'no-store'});
+      if(!r.ok)throw new Error(`config HTTP ${r.status}`);
+      const c=await r.json();
+      if(c?.configured&&c?.space_url){
+        urlEl.value=String(c.space_url).replace(/\/+$/,'');
+        resolvedRepo=c.repo_url||resolvedRepo;repoLink.href=resolvedRepo;
+        meta.textContent=`Space=${c.repo_id||'—'}｜stage=${c.stage||'—'}｜hardware=${c.hardware||c.requested_hardware||'zero-a10g'}`;
+        return c;
+      }
+      badge.textContent='尚未部署';
+      setStatus('warn','Hugging Face Space 尚未建立完成；GitHub 自動部署正在等待 Hugging Face 授權憑證。');
+      repoLink.href='https://huggingface.co/new-space';
+      return c;
+    }catch(e){
+      badge.textContent='設定未就緒';setStatus('warn','尚未取得 Hugging Face 部署設定：'+(e.message||e));return null;
+    }
+  }
+
   async function callGradio(apiName,data,timeoutMs=180000){
     const base=space();
+    if(!/^https:\/\/.+\.hf\.space$/i.test(base))throw new Error('Space URL 尚未設定');
     const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),timeoutMs);
     try{
       const start=await fetch(`${base}/gradio_api/call/${apiName}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data}),signal:ctl.signal});
+      if(start.status===404)throw new Error('Space 尚未建立、正在建置，或 API route 尚未發布');
       if(!start.ok)throw new Error(`Space submit HTTP ${start.status}`);
       const j=await start.json();if(!j.event_id)throw new Error('Space 未回傳 event_id');
       const result=await fetch(`${base}/gradio_api/call/${apiName}/${j.event_id}`,{signal:ctl.signal});
@@ -53,7 +77,7 @@
   async function health(){
     badge.textContent='檢查中';setStatus('info','正在檢查 Hugging Face ZeroGPU Space…');
     try{
-      const j=await callGradio('health_api',['health'],45000);
+      const j=await callGradio('health_api',['health'],60000);
       if(!j||j.status!=='ok')throw new Error('Space health 非正常狀態');
       badge.textContent='ZeroGPU 正常';setStatus('ok',`✓ ZeroGPU Space 已啟用；model=${j.model||'Gemma 4 E4B'}。`);meta.textContent=`backend=${j.backend||'huggingface-zerogpu'}｜GPU=${j.gpu_mode||'ZeroGPU'}`;return true;
     }catch(e){badge.textContent='Space 未就緒';setStatus('warn','⚠ ZeroGPU Space 尚未可用：'+(e.message||e));return false}
@@ -112,5 +136,5 @@
 
   $('hfHealth').onclick=health;$('hfRun').onclick=runInvoice;$('hfBuyer').onclick=runBuyer;
   const baseScan=scanBtn.onclick;scanBtn.onclick=async function(){if(typeof baseScan==='function')await baseScan.call(scanBtn);await runInvoice()};
-  setTimeout(health,700);
+  setTimeout(async()=>{const c=await loadConfig();if(c?.configured&&c?.space_url)await health()},700);
 })();
