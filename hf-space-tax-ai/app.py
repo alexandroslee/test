@@ -1,3 +1,6 @@
+# IMPORTANT: ZeroGPU requires `spaces` to be imported before torch/CUDA.
+import spaces
+
 import base64
 import io
 import json
@@ -7,7 +10,6 @@ import time
 from typing import Any
 
 import gradio as gr
-import spaces
 import torch
 from PIL import Image
 from transformers import AutoModelForMultimodalLM, AutoProcessor
@@ -15,13 +17,14 @@ from transformers import AutoModelForMultimodalLM, AutoProcessor
 MODEL_ID = "google/gemma-4-E4B-it"
 HF_TOKEN = os.getenv("HF_TOKEN") or None
 
-# ZeroGPU supports CUDA emulation at module import time. Loading to CUDA here is
-# the recommended pattern so GPU allocation inside @spaces.GPU is efficient.
+# ZeroGPU CUDA emulation is active after importing `spaces`. Hugging Face
+# recommends placing the model on CUDA at module load time, even though the
+# physical GPU is allocated only while an @spaces.GPU function is running.
 processor = AutoProcessor.from_pretrained(MODEL_ID, token=HF_TOKEN)
 model = AutoModelForMultimodalLM.from_pretrained(
     MODEL_ID,
     token=HF_TOKEN,
-    torch_dtype=torch.bfloat16,
+    dtype=torch.bfloat16,
 )
 model.to("cuda")
 model.eval()
@@ -156,7 +159,6 @@ def invoice_api(image_data: str) -> dict:
     except Exception:
         confidence = 0.0
 
-    # api-ocr-2025 compatible envelope for the existing frontend mapper.
     return {
         "count": 1,
         "results": [{
@@ -247,7 +249,6 @@ with gr.Blocks(title="Tax AI ZeroGPU — Gemma 4 E4B") as demo:
         out2 = gr.JSON(label="辨識結果")
         btn2.click(ui_buyer, inputs=img2, outputs=out2)
 
-    # Hidden text endpoints are intentionally simple for GitHub Pages browser calls.
     api_in = gr.Textbox(visible=False)
     api_out = gr.JSON(visible=False)
     gr.Button(visible=False).click(invoice_api, inputs=api_in, outputs=api_out, api_name="invoice_api")
