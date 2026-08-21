@@ -1,3 +1,4 @@
+# Trigger 2026-08-22: verify the V1.4.5 direct-run fallback used after malformed ZeroGPU SSE.
 name: Verify Tax AI Gradio direct-run fallback
 
 on:
