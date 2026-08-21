@@ -1,22 +1,46 @@
 {
   "expected": "54169882",
   "space_url": "https://alexandroslee-tax-ai-zerogpu.hf.space",
-  "tested_at_unix": 1787347442,
+  "tested_at_unix": 1787349796,
   "submit_status": 200,
-  "submit_body": "{\"event_id\":\"483ce87f04c24e2090b919d8a60d8a2d\"}",
-  "event_id": "483ce87f04c24e2090b919d8a60d8a2d",
+  "submit_body": "{\"event_id\":\"e4f9d002049240d687f2620ceea9f80e\"}",
+  "event_id": "e4f9d002049240d687f2620ceea9f80e",
   "result_status": 200,
-  "result_body": "event: complete\ndata: [{\"buyer_tax_id\": null, \"digits\": [], \"confidence\": 0.0, \"model\": \"google/gemma-4-E4B-it\", \"checksum_used\": false, \"raw\": \"```json\\n{\\\"buyer_tax_id\\\":null,\\\"digits\\\":null,\\\"confidence\\\":0.0}\\n```\", \"elapsed_ms\": 2353}]\n\n",
+  "result_body": "event: complete\ndata: [{\"buyer_tax_id\": \"54169882\", \"digits\": [\"5\", \"4\", \"1\", \"6\", \"9\", \"8\", \"8\", \"2\"], \"confidence\": 1.0, \"model\": \"google/gemma-4-E4B-it\", \"checksum_used\": false, \"raw\": \"{\\\"buyer_tax_id\\\":null,\\\"digits\\\":[\\\"5\\\",\\\"4\\\",\\\"1\\\",\\\"6\\\",\\\"9\\\",\\\"8\\\",\\\"8\\\",\\\"2\\\"],\\\"confidence\\\":1.0}\", \"vision_debug\": {\"input_keys\": [\"input_ids\", \"attention_mask\", \"mm_token_type_ids\", \"pixel_values\", \"image_position_ids\"], \"pixel_values\": [1, 10080, 768], \"visual_token_budget\": 1120}, \"elapsed_ms\": 2848}]\n\n",
   "result": {
-    "buyer_tax_id": null,
-    "digits": [],
-    "confidence": 0.0,
+    "buyer_tax_id": "54169882",
+    "digits": [
+      "5",
+      "4",
+      "1",
+      "6",
+      "9",
+      "8",
+      "8",
+      "2"
+    ],
+    "confidence": 1.0,
     "model": "google/gemma-4-E4B-it",
     "checksum_used": false,
-    "raw": "```json\n{\"buyer_tax_id\":null,\"digits\":null,\"confidence\":0.0}\n```",
-    "elapsed_ms": 2353
+    "raw": "{\"buyer_tax_id\":null,\"digits\":[\"5\",\"4\",\"1\",\"6\",\"9\",\"8\",\"8\",\"2\"],\"confidence\":1.0}",
+    "vision_debug": {
+      "input_keys": [
+        "input_ids",
+        "attention_mask",
+        "mm_token_type_ids",
+        "pixel_values",
+        "image_position_ids"
+      ],
+      "pixel_values": [
+        1,
+        10080,
+        768
+      ],
+      "visual_token_budget": 1120
+    },
+    "elapsed_ms": 2848
   },
-  "recognized": null,
-  "match": false,
-  "elapsed_sec": 4.94
+  "recognized": "54169882",
+  "match": true,
+  "elapsed_sec": 5.33
 }
