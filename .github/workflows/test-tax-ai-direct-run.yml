@@ -46,12 +46,16 @@ jobs:
           out={'url':base+'/gradio_api/run/invoice_api','tested_at_unix':int(time.time())}
           t=time.time()
           try:
-              r=requests.post(out['url'],json={'image_data':data},timeout=180)
+              r=requests.post(out['url'],json={'data':[data]},timeout=180)
               out['status']=r.status_code
               out['body']=r.text[:12000]
               if r.ok:
-                  j=r.json();out['output']=j.get('output')
-                  dd=((out['output'] or {}).get('results') or [{}])[0].get('data',{}) if isinstance(out['output'],dict) else {}
+                  j=r.json();out['json']=j
+                  output=j.get('output')
+                  if output is None and isinstance(j.get('data'),list) and j['data']:
+                      output=j['data'][0]
+                  out['output']=output
+                  dd=((output or {}).get('results') or [{}])[0].get('data',{}) if isinstance(output,dict) else {}
                   out['amount_match']=(dd.get('sales_amount')==1000 and dd.get('tax_amount')==50 and dd.get('total_amount')==1050)
           except Exception as e:
               out['error']=f'{type(e).__name__}: {e}'
