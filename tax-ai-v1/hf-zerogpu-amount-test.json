@@ -4,12 +4,11 @@
     "tax_amount": 50,
     "total_amount": 1050
   },
-  "tested_at_unix": 1787352388,
+  "tested_at_unix": 1787352460,
   "submit_status": 200,
-  "submit_body": "{\"event_id\":\"c96baa15f07a44e1aa97d2b28f0ae536\"}",
-  "event_id": "c96baa15f07a44e1aa97d2b28f0ae536",
+  "event_id": "c1825e5ff9a7435fb418a9223ecf01e5",
   "result_status": 200,
-  "result_body": "event: complete\ndata: [{\"count\": 1, \"results\": [{\"data\": {\"invoice_type\": \"\\u96fb\\u5b50\\u767c\\u7968\", \"invoice_number\": \"YK-29683035\", \"invoice_date\": \"\", \"seller_tax_id\": \"22456427\", \"buyer_tax_id\": \"54169882\", \"seller_name\": \"\", \"sales_amount\": 1000, \"tax_amount\": 50, \"total_amount\": 1050}, \"confidence\": 0.95, \"source\": \"hf-zerogpu-gemma4-e4b\", \"raw_text\": \"```json\\n{\\n  \\\"invoice_type\\\": \\\"\\u96fb\\u5b50\\u767c\\u7968\\\",\\n  \\\"invoice_number\\\": \\\"YK-29683035\\\",\\n  \\\"invoice_date\\\": \\\"\\\",\\n  \\\"seller_tax_id\\\": \\\"22456427\\\",\\n  \\\"buyer_tax_id\\\": \\\"54169882\\\",\\n  \\\"seller_name\\\": \\\"\\\",\\n  \\\"sales_amount\\\": 1000,\\n  \\\"tax_amount\\\": 50,\\n  \\\"total_amount\\\": 1050,\\n  \\\"confidence\\\": 0.95\\n}\\n```\", \"warnings\": [], \"elapsed_ms\": 7796, \"vision_debug\": {\"input_keys\": [\"input_ids\", \"attention_mask\", \"mm_token_type_ids\", \"pixel_values\", \"image_position_ids\"], \"pixel_values\": [1, 10080, 768], \"visual_token_budget\": 1120}, \"amount_semantics\": {\"sales_amount\": \"\\u7968\\u9762\\u300e\\u92b7\\u552e\\u984d\\u300f\\uff1d\\u672a\\u7a05\\u91d1\\u984d\", \"tax_amount\": \"\\u7968\\u9762\\u300e\\u71df\\u696d\\u7a05\\uff0f\\u7a05\\u984d\\u300f\", \"total_amount\": \"\\u7968\\u9762\\u300e\\u7e3d\\u8a08\\uff0f\\u5408\\u8a08\\uff0f\\u7e3d\\u984d\\u300f\\uff1d\\u542b\\u7a05\\u7e3d\\u984d\", \"printed_values_preferred\": true}}], \"model\": \"google/gemma-4-E4B-it\", \"checksum_used\": false}]\n\n",
+  "result_body": "event: complete\ndata: [{\"count\": 1, \"results\": [{\"data\": {\"invoice_type\": \"\\u96fb\\u5b50\\u767c\\u7968\", \"invoice_number\": \"YK-29683035\", \"invoice_date\": \"\", \"seller_tax_id\": \"22456427\", \"buyer_tax_id\": \"54169882\", \"seller_name\": \"\", \"sales_amount\": 1000, \"tax_amount\": 50, \"total_amount\": 1050}, \"confidence\": 0.95, \"source\": \"hf-zerogpu-gemma4-e4b\", \"raw_text\": \"```json\\n{\\n  \\\"invoice_type\\\": \\\"\\u96fb\\u5b50\\u767c\\u7968\\\",\\n  \\\"invoice_number\\\": \\\"YK-29683035\\\",\\n  \\\"invoice_date\\\": \\\"\\\",\\n  \\\"seller_tax_id\\\": \\\"22456427\\\",\\n  \\\"buyer_tax_id\\\": \\\"54169882\\\",\\n  \\\"seller_name\\\": \\\"\\\",\\n  \\\"sales_amount\\\": 1000,\\n  \\\"tax_amount\\\": 50,\\n  \\\"total_amount\\\": 1050,\\n  \\\"confidence\\\": 0.95\\n}\\n```\", \"warnings\": [], \"elapsed_ms\": 7028, \"vision_debug\": {\"input_keys\": [\"input_ids\", \"attention_mask\", \"mm_token_type_ids\", \"pixel_values\", \"image_position_ids\"], \"pixel_values\": [1, 10080, 768], \"visual_token_budget\": 1120}, \"amount_semantics\": {\"sales_amount\": \"\\u7968\\u9762\\u300e\\u92b7\\u552e\\u984d\\u300f\\uff1d\\u672a\\u7a05\\u91d1\\u984d\", \"tax_amount\": \"\\u7968\\u9762\\u300e\\u71df\\u696d\\u7a05\\uff0f\\u7a05\\u984d\\u300f\", \"total_amount\": \"\\u7968\\u9762\\u300e\\u7e3d\\u8a08\\uff0f\\u5408\\u8a08\\uff0f\\u7e3d\\u984d\\u300f\\uff1d\\u542b\\u7a05\\u7e3d\\u984d\", \"printed_values_preferred\": true}}], \"model\": \"google/gemma-4-E4B-it\", \"checksum_used\": false}]\n\n",
   "result": {
     "count": 1,
     "results": [
@@ -29,7 +28,7 @@
         "source": "hf-zerogpu-gemma4-e4b",
         "raw_text": "```json\n{\n  \"invoice_type\": \"電子發票\",\n  \"invoice_number\": \"YK-29683035\",\n  \"invoice_date\": \"\",\n  \"seller_tax_id\": \"22456427\",\n  \"buyer_tax_id\": \"54169882\",\n  \"seller_name\": \"\",\n  \"sales_amount\": 1000,\n  \"tax_amount\": 50,\n  \"total_amount\": 1050,\n  \"confidence\": 0.95\n}\n```",
         "warnings": [],
-        "elapsed_ms": 7796,
+        "elapsed_ms": 7028,
         "vision_debug": {
           "input_keys": [
             "input_ids",
@@ -68,5 +67,5 @@
     "total_amount": 1050
   },
   "amount_match": true,
-  "elapsed_sec": 10.82
+  "elapsed_sec": 11.99
 }
