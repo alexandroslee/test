@@ -1,3 +1,4 @@
+# Triggered after HF_TOKEN was configured on 2026-08-22.
 name: Deploy Tax AI to Hugging Face ZeroGPU
 
 on:
@@ -61,7 +62,6 @@ jobs:
               private=False,
           )
 
-          # ZeroGPU still uses the legacy hardware identifier zero-a10g in Hub APIs.
           runtime = api.request_space_hardware(repo_id=repo_id, hardware='zero-a10g')
           print('Requested hardware:', runtime.requested_hardware)
 
@@ -72,7 +72,6 @@ jobs:
               commit_message='Deploy Tax AI Gemma 4 E4B ZeroGPU',
           )
 
-          # Re-read runtime after upload. Build can continue asynchronously.
           runtime = api.get_space_runtime(repo_id=repo_id)
           owner_slug = owner.lower().replace('_', '-')
           space_url = f'https://{owner_slug}-tax-ai-zerogpu.hf.space'
@@ -108,7 +107,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python - <<'PY'
-          import json, os, time, requests
+          import json, os, requests
           from huggingface_hub import HfApi
 
           cfg = json.load(open('tax-ai-v1/hf-space.json', encoding='utf-8'))
@@ -121,7 +120,6 @@ jobs:
               print('wait_for_space:', repr(e))
 
           base = cfg['space_url'].rstrip('/')
-          # Gradio schema endpoint is CPU-only and proves that the named API routes exist.
           r = requests.get(base + '/gradio_api/openapi.json', timeout=60)
           print('OpenAPI HTTP', r.status_code)
           if r.status_code != 200:
