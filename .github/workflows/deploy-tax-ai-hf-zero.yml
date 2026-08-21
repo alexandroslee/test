@@ -1,3 +1,4 @@
+# Redeploy trigger: torchvision dependency added for Gemma 4 image processing.
 name: Deploy Tax AI to Hugging Face ZeroGPU
 
 on:
@@ -71,10 +72,6 @@ jobs:
               report['space_url'] = f'https://{owner_slug}-tax-ai-zerogpu.hf.space'
               report['stage'] = 'AUTH_OK'
 
-              # Free personal accounts can still create ZeroGPU Gradio Spaces,
-              # but creating a cpu-basic Gradio Space first now returns HTTP 402.
-              # Therefore resolve a ZeroGPU flavor BEFORE repository creation and
-              # pass it to create_repo(space_hardware=...).
               hardware_list = api.list_spaces_hardware()
               zero_names = [h.name for h in hardware_list if 'zero' in h.name.lower()]
               report['available_zero_hardware'] = zero_names
