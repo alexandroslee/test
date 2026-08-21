@@ -1,4 +1,4 @@
-# Diagnostic refresh after ZeroGPU rebuild.
+# Live API contract test after ZeroGPU reaches RUNNING.
 name: Diagnose Tax AI Hugging Face Space
 
 on:
@@ -21,16 +21,17 @@ jobs:
           ref: gh-pages
           fetch-depth: 0
 
-      - name: Install Hugging Face Hub
-        run: python -m pip install --upgrade 'huggingface_hub>=0.35'
+      - name: Install dependencies
+        run: python -m pip install --upgrade 'huggingface_hub>=0.35' requests
 
-      - name: Fetch Space runtime and logs
+      - name: Test Space runtime and API
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python - <<'PY'
           import json, os, time
           from pathlib import Path
+          import requests
           from huggingface_hub import HfApi, fetch_space_logs
 
           cfg_path=Path('tax-ai-v1/hf-space.json')
@@ -38,34 +39,59 @@ jobs:
           repo_id=cfg.get('repo_id') or 'AlexandrosLee/tax-ai-zerogpu'
           token=os.environ.get('HF_TOKEN','')
           api=HfApi(token=token)
-          out={'repo_id':repo_id,'captured_at_unix':int(time.time()),'runtime':{},'run_logs':'','build_logs':'','error':None}
+          owner=repo_id.split('/')[0].lower().replace('_','-')
+          base=cfg.get('space_url') or f'https://{owner}-tax-ai-zerogpu.hf.space'
+          headers={'Authorization':f'Bearer {token}'} if token else {}
+          out={'repo_id':repo_id,'space_url':base,'captured_at_unix':int(time.time()),'runtime':{},'http':{},'run_logs_tail':''}
+
           try:
               rt=api.get_space_runtime(repo_id=repo_id)
               out['runtime']={'stage':str(rt.stage),'hardware':str(rt.hardware) if rt.hardware else None,'requested_hardware':str(rt.requested_hardware) if rt.requested_hardware else None}
-          except Exception as e:
-              out['runtime_error']=repr(e)
-          for key,build in [('run_logs',False),('build_logs',True)]:
+          except Exception as e: out['runtime_error']=repr(e)
+
+          for path in ['/','/gradio_api/info','/config','/gradio_api/openapi.json']:
               try:
-                  lines=[]
-                  for line in fetch_space_logs(repo_id, build=build, follow=False, token=token):
-                      lines.append(str(line))
-                      if len(lines)>500: lines=lines[-500:]
-                  out[key]=''.join(lines)[-40000:]
-              except Exception as e:
-                  out[key+'_error']=repr(e)
-          Path('tax-ai-v1/hf-space-logs.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-          print(json.dumps(out,ensure_ascii=False,indent=2)[:16000])
+                  r=requests.get(base+path,headers=headers,timeout=60)
+                  out['http'][path]={'status':r.status_code,'content_type':r.headers.get('content-type'),'body':r.text[:5000]}
+              except Exception as e: out['http'][path]={'error':repr(e)}
+
+          # Real queue API call. Health is CPU-only and should not consume a GPU slot.
+          for auth_mode,h in [('auth',headers),('anonymous',{})]:
+              key=f'health_{auth_mode}'
+              try:
+                  r=requests.post(base+'/gradio_api/call/health_api',headers={**h,'Content-Type':'application/json'},json={'data':['health']},timeout=60)
+                  item={'submit_status':r.status_code,'submit_body':r.text[:2000]}
+                  if r.ok:
+                      event_id=r.json().get('event_id')
+                      item['event_id']=event_id
+                      if event_id:
+                          rr=requests.get(base+f'/gradio_api/call/health_api/{event_id}',headers=h,timeout=90)
+                          item['result_status']=rr.status_code
+                          item['result_body']=rr.text[:5000]
+                  out[key]=item
+              except Exception as e: out[key]={'error':repr(e)}
+
+          try:
+              lines=[]
+              for line in fetch_space_logs(repo_id,build=False,follow=False,token=token):
+                  lines.append(str(line))
+                  if len(lines)>250: lines=lines[-250:]
+              out['run_logs_tail']=''.join(lines)[-20000:]
+          except Exception as e: out['run_logs_error']=repr(e)
+
+          Path('tax-ai-v1/hf-space-api-test.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2)[:20000])
           PY
 
-      - name: Commit logs to gh-pages
+      - name: Commit API test to gh-pages
         if: always()
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tax-ai-v1/hf-space-logs.json
+          git add tax-ai-v1/hf-space-api-test.json
           if git diff --cached --quiet; then
-            echo 'Logs unchanged.'
+            echo 'Test unchanged.'
           else
-            git commit -m 'Capture Hugging Face ZeroGPU logs'
+            git commit -m 'Test Hugging Face ZeroGPU API'
             git push origin HEAD:gh-pages
           fi
