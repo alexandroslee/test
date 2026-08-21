@@ -1,5 +1,6 @@
 spaces
 torch==2.9.1
+torchvision==0.24.1
 gradio>=5.49,<7
 transformers>=5.5.0,<6
 accelerate>=1.10.0
