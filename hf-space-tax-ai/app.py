@@ -17,10 +17,9 @@ from transformers import AutoModelForMultimodalLM, AutoProcessor
 MODEL_ID = "google/gemma-4-E4B-it"
 HF_TOKEN = os.getenv("HF_TOKEN") or None
 
-# ZeroGPU CUDA emulation is active after importing `spaces`. Hugging Face
-# recommends placing the model on CUDA at module load time, even though the
-# physical GPU is allocated only while an @spaces.GPU function is running.
 processor = AutoProcessor.from_pretrained(MODEL_ID, token=HF_TOKEN)
+# Gemma 4 officially recommends a high visual-token budget for OCR/document parsing.
+processor.image_processor.max_soft_tokens = 1120
 model = AutoModelForMultimodalLM.from_pretrained(
     MODEL_ID,
     token=HF_TOKEN,
@@ -57,18 +56,13 @@ INVOICE_PROMPT = r"""
 """.strip()
 
 BUYER_BAN_PROMPT = r"""
-這是一張從台灣三聯式統一發票裁切出的「買受人統一編號 8 格」影像。
-影像中從左到右正好是 8 個格子。請逐格讀取一個數字。
-
-規則：
-- 忽略格線、印刷文字、污點與紅色印章。
-- 從左到右讀 8 格，一格只能有一個數字。
-- 不可使用統編檢查碼猜測、修補、替換或反推任何數字。
-- 只要有任何一格真的無法辨識，buyer_tax_id 必須是 null。
-- 不可因為某組數字「比較像合法統編」就改字。
-
-只輸出 JSON：
-{"buyer_tax_id":"12345678"或null,"digits":["1","2","3","4","5","6","7","8"],"confidence":0.0}
+Look carefully at the image. It contains exactly eight adjacent cells, each with one visible decimal digit.
+Read the eight digits strictly from LEFT TO RIGHT.
+Ignore borders/grid lines, printed noise, stamps and background marks.
+Do not use any Taiwan tax-ID checksum or validity rule to guess, repair, substitute, or change a digit.
+If a cell truly cannot be visually read, buyer_tax_id must be null. Otherwise, return all eight visible digits.
+Return ONLY JSON in this exact shape:
+{"buyer_tax_id":"12345678" or null,"digits":["1","2","3","4","5","6","7","8"],"confidence":0.0}
 """.strip()
 
 
@@ -87,6 +81,12 @@ def _decode_image(value: Any) -> Image.Image:
     raise ValueError("無法讀取影像")
 
 
+def _image_data_url(image: Image.Image) -> str:
+    buf = io.BytesIO()
+    image.convert("RGB").save(buf, format="PNG", optimize=False)
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+
 def _extract_json(text: str) -> dict:
     text = (text or "").strip()
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.I | re.S).strip()
@@ -97,6 +97,25 @@ def _extract_json(text: str) -> dict:
         return json.loads(m.group(0))
     except Exception:
         return {}
+
+
+def _parsed_to_text(parsed: Any, fallback: str) -> str:
+    if isinstance(parsed, str):
+        return parsed.strip()
+    if isinstance(parsed, dict):
+        content = parsed.get("content")
+        if isinstance(content, str):
+            return content.strip()
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict) and item.get("text"):
+                    parts.append(str(item["text"]))
+            if parts:
+                return "\n".join(parts).strip()
+    return fallback.strip()
 
 
 def _clean_tax_id(v: Any) -> str:
@@ -110,11 +129,13 @@ def _clean_invoice_no(v: Any) -> str:
     return f"{m.group(1)}-{m.group(2)}" if m else ""
 
 
-def _generate(image: Image.Image, prompt: str, max_new_tokens: int = 600) -> str:
+def _generate(image: Image.Image, prompt: str, max_new_tokens: int = 600):
+    # Follow Google's/Hugging Face's Gemma 4 multimodal example exactly:
+    # image first, represented through the `url` field, then text.
     messages = [{
         "role": "user",
         "content": [
-            {"type": "image", "image": image},
+            {"type": "image", "url": _image_data_url(image)},
             {"type": "text", "text": prompt},
         ],
     }]
@@ -126,6 +147,9 @@ def _generate(image: Image.Image, prompt: str, max_new_tokens: int = 600) -> str
         add_generation_prompt=True,
         enable_thinking=False,
     ).to(model.device)
+    # Contract assertion: never silently run a text-only path for an image request.
+    if "pixel_values" not in inputs:
+        raise RuntimeError(f"Gemma 4 processor did not produce pixel_values; keys={list(inputs.keys())}")
     n = inputs["input_ids"].shape[-1]
     with torch.inference_mode():
         output = model.generate(
@@ -133,14 +157,25 @@ def _generate(image: Image.Image, prompt: str, max_new_tokens: int = 600) -> str
             max_new_tokens=max_new_tokens,
             do_sample=False,
         )
-    return processor.decode(output[0][n:], skip_special_tokens=True).strip()
+    decoded = processor.decode(output[0][n:], skip_special_tokens=False).strip()
+    try:
+        parsed = processor.parse_response(decoded, prefix=inputs["input_ids"])
+        final = _parsed_to_text(parsed, decoded)
+    except Exception:
+        final = processor.decode(output[0][n:], skip_special_tokens=True).strip()
+    debug = {
+        "input_keys": list(inputs.keys()),
+        "pixel_values": list(inputs["pixel_values"].shape) if hasattr(inputs["pixel_values"], "shape") else True,
+        "visual_token_budget": int(processor.image_processor.max_soft_tokens),
+    }
+    return final, debug
 
 
-@spaces.GPU(duration=60)
+@spaces.GPU(duration=90)
 def invoice_api(image_data: str) -> dict:
     started = time.time()
     image = _decode_image(image_data)
-    raw = _generate(image, INVOICE_PROMPT, max_new_tokens=650)
+    raw, vision_debug = _generate(image, INVOICE_PROMPT, max_new_tokens=650)
     obj = _extract_json(raw)
 
     data = {
@@ -168,17 +203,18 @@ def invoice_api(image_data: str) -> dict:
             "raw_text": raw,
             "warnings": [],
             "elapsed_ms": int((time.time() - started) * 1000),
+            "vision_debug": vision_debug,
         }],
         "model": MODEL_ID,
         "checksum_used": False,
     }
 
 
-@spaces.GPU(duration=35)
+@spaces.GPU(duration=60)
 def buyer_ban_api(image_data: str) -> dict:
     started = time.time()
     image = _decode_image(image_data)
-    raw = _generate(image, BUYER_BAN_PROMPT, max_new_tokens=140)
+    raw, vision_debug = _generate(image, BUYER_BAN_PROMPT, max_new_tokens=160)
     obj = _extract_json(raw)
 
     ban = obj.get("buyer_tax_id")
@@ -204,6 +240,7 @@ def buyer_ban_api(image_data: str) -> dict:
         "model": MODEL_ID,
         "checksum_used": False,
         "raw": raw,
+        "vision_debug": vision_debug,
         "elapsed_ms": int((time.time() - started) * 1000),
     }
 
@@ -214,6 +251,7 @@ def health_api() -> dict:
         "backend": "huggingface-zerogpu",
         "model": MODEL_ID,
         "gpu_mode": "ZeroGPU",
+        "visual_token_budget": int(processor.image_processor.max_soft_tokens),
         "checksum_used": False,
     }
 
@@ -262,4 +300,4 @@ with gr.Blocks(title="Tax AI ZeroGPU — Gemma 4 E4B") as demo:
     gr.Button(visible=False).click(lambda _x: health_api(), inputs=h_in, outputs=h_out, api_name="health_api")
 
 if __name__ == "__main__":
-    demo.queue(default_concurrency_limit=1).launch()
+    demo.queue(default_concurrency_limit=1).launch(ssr_mode=False)
