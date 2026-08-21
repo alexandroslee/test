@@ -1,17 +1,21 @@
 {
-  "configured": false,
+  "configured": true,
   "repo_id": "AlexandrosLee/tax-ai-zerogpu",
   "repo_url": "https://huggingface.co/spaces/AlexandrosLee/tax-ai-zerogpu",
   "space_url": "https://alexandroslee-tax-ai-zerogpu.hf.space",
-  "stage": "RUNTIME_ERROR",
-  "hardware": null,
+  "stage": "RUNNING_API_READY",
+  "hardware": "zero-a10g",
   "requested_hardware": "zero-a10g",
-  "available_zero_hardware": [
-    "zero-a10g"
-  ],
-  "deployed_at_unix": 1787346542,
-  "error": "RuntimeError: Space OpenAPI unavailable: HTTP 503: Your space is in error, check its status on hf.co",
+  "available_zero_hardware": ["zero-a10g"],
   "hf_owner": "AlexandrosLee",
-  "openapi_http": 503,
-  "traceback_tail": "Traceback (most recent call last):\n  File \"<stdin>\", line 100, in <module>\nRuntimeError: Space OpenAPI unavailable: HTTP 503: Your space is in error, check its status on hf.co\n"
+  "info_http": 200,
+  "api_routes": ["/ui_invoice", "/ui_buyer", "/invoice_api", "/buyer_ban_api", "/health_api"],
+  "vision_smoke_test": {
+    "expected": "54169882",
+    "recognized": "54169882",
+    "match": true,
+    "checksum_used": false,
+    "visual_token_budget": 1120
+  },
+  "error": null
 }
