@@ -1,3 +1,4 @@
+# Rerun 2026-08-22 after official Gemma 4 multimodal input fix.
 name: Test Tax AI ZeroGPU Gemma Vision
 
 on:
@@ -37,7 +38,6 @@ jobs:
           W,H=960,180
           img=Image.new('RGB',(W,H),'white')
           d=ImageDraw.Draw(img)
-          # Strong invoice-like 8-cell border.
           for i in range(9):
               x=i*W//8
               d.line((x,5,x,H-5),fill='black',width=3)
@@ -71,7 +71,6 @@ jobs:
               eid=r.json()['event_id']; out['event_id']=eid
               rr=requests.get(base+f'/gradio_api/call/buyer_ban_api/{eid}',headers={'Authorization':f'Bearer {token}'},timeout=180)
               out['result_status']=rr.status_code; out['result_body']=rr.text[:10000]
-              # Parse SSE complete payload.
               payload=None
               for line in rr.text.splitlines():
                   if line.startswith('data:'):
