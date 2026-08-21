@@ -1,3 +1,4 @@
+# Trigger: anonymous amount-field regression test
 name: Test Tax AI invoice amount fields
 
 on:
@@ -18,47 +19,41 @@ jobs:
         with:
           ref: gh-pages
           fetch-depth: 0
-      - name: Install test deps and CJK font
+      - name: Install test dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y fonts-noto-cjk
           python -m pip install requests pillow
-      - name: Generate synthetic Taiwan invoice amount block and call ZeroGPU
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      - name: Generate synthetic invoice and call ZeroGPU anonymously
         run: |
           python - <<'PY'
-          import base64, io, json, os, time
+          import base64, io, json, time
           from pathlib import Path
           import requests
           from PIL import Image, ImageDraw, ImageFont
 
-          W,H=1000,650
-          img=Image.new('RGB',(W,H),'white')
+          img=Image.new('RGB',(1000,650),'white')
           d=ImageDraw.Draw(img)
-          font_path='/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc'
-          f1=ImageFont.truetype(font_path,58)
-          f2=ImageFont.truetype(font_path,72)
+          fp='/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc'
+          f1=ImageFont.truetype(fp,58); f2=ImageFont.truetype(fp,72)
           d.text((60,45),'電子發票證明聯',font=f1,fill='black')
           d.text((60,130),'發票號碼 YK-29683035',font=f1,fill='black')
           d.text((60,220),'賣方 22456427   買方 54169882',font=f1,fill='black')
           d.line((60,330,940,330),fill='black',width=3)
           d.text((90,365),'銷售額',font=f1,fill='black'); d.text((600,365),'1000',font=f2,fill='black')
-          d.text((90,455),'稅額',font=f1,fill='black');   d.text((600,455),'50',font=f2,fill='black')
-          d.text((90,545),'總計',font=f1,fill='black');   d.text((600,545),'1050',font=f2,fill='black')
-          buf=io.BytesIO(); img.save(buf,format='PNG')
-          data_url='data:image/png;base64,'+base64.b64encode(buf.getvalue()).decode()
+          d.text((90,455),'稅額',font=f1,fill='black'); d.text((600,455),'50',font=f2,fill='black')
+          d.text((90,545),'總計',font=f1,fill='black'); d.text((600,545),'1050',font=f2,fill='black')
+          b=io.BytesIO(); img.save(b,format='PNG')
+          data_url='data:image/png;base64,'+base64.b64encode(b.getvalue()).decode()
 
           base='https://alexandroslee-tax-ai-zerogpu.hf.space'
-          token=os.environ['HF_TOKEN']
-          h={'Authorization':f'Bearer {token}','Content-Type':'application/json'}
           out={'expected':{'sales_amount':1000,'tax_amount':50,'total_amount':1050},'tested_at_unix':int(time.time())}
-          t=time.time()
+          started=time.time()
           try:
-              r=requests.post(base+'/gradio_api/call/invoice_api',headers=h,json={'data':[data_url]},timeout=120)
-              out['submit_status']=r.status_code; out['submit_body']=r.text[:1000]
-              r.raise_for_status(); eid=r.json()['event_id']; out['event_id']=eid
-              rr=requests.get(base+f'/gradio_api/call/invoice_api/{eid}',headers={'Authorization':f'Bearer {token}'},timeout=180)
+              r=requests.post(base+'/gradio_api/call/invoice_api',json={'data':[data_url]},timeout=120)
+              out['submit_status']=r.status_code; r.raise_for_status()
+              eid=r.json()['event_id']; out['event_id']=eid
+              rr=requests.get(base+f'/gradio_api/call/invoice_api/{eid}',timeout=180)
               out['result_status']=rr.status_code; out['result_body']=rr.text[:12000]
               payload=None
               for line in rr.text.splitlines():
@@ -74,7 +69,7 @@ jobs:
               out['amount_match']=bool(data and all(int(data.get(k))==v for k,v in exp.items()))
           except Exception as e:
               out['error']=f'{type(e).__name__}: {e}'
-          out['elapsed_sec']=round(time.time()-t,2)
+          out['elapsed_sec']=round(time.time()-started,2)
           Path('tax-ai-v1/hf-zerogpu-amount-test.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(out,ensure_ascii=False,indent=2))
           PY
