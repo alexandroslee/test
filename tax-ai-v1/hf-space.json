@@ -1,0 +1,9 @@
+{
+  "configured": false,
+  "repo_id": null,
+  "repo_url": "https://huggingface.co/new-space",
+  "space_url": null,
+  "stage": "NOT_CREATED",
+  "hardware": null,
+  "requested_hardware": "zero-a10g"
+}
