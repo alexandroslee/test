@@ -1,0 +1,70 @@
+name: Diagnose Tax AI Hugging Face Space
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/diagnose-tax-ai-hf-zero.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+
+      - name: Install Hugging Face Hub
+        run: python -m pip install --upgrade 'huggingface_hub>=0.35'
+
+      - name: Fetch Space runtime and logs
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json, os, time, traceback
+          from pathlib import Path
+          from huggingface_hub import HfApi, fetch_space_logs
+
+          cfg_path=Path('tax-ai-v1/hf-space.json')
+          cfg=json.loads(cfg_path.read_text(encoding='utf-8')) if cfg_path.exists() else {}
+          repo_id=cfg.get('repo_id') or 'AlexandrosLee/tax-ai-zerogpu'
+          token=os.environ.get('HF_TOKEN','')
+          api=HfApi(token=token)
+          out={'repo_id':repo_id,'captured_at_unix':int(time.time()),'runtime':{},'run_logs':'','build_logs':'','error':None}
+          try:
+              rt=api.get_space_runtime(repo_id=repo_id)
+              out['runtime']={'stage':str(rt.stage),'hardware':str(rt.hardware) if rt.hardware else None,'requested_hardware':str(rt.requested_hardware) if rt.requested_hardware else None}
+          except Exception as e:
+              out['runtime_error']=repr(e)
+          for key,build in [('run_logs',False),('build_logs',True)]:
+              try:
+                  lines=[]
+                  for line in fetch_space_logs(repo_id, build=build, follow=False, token=token):
+                      lines.append(str(line))
+                      if len(lines)>400: lines=lines[-400:]
+                  out[key]=''.join(lines)[-30000:]
+              except Exception as e:
+                  out[key+'_error']=repr(e)
+          Path('tax-ai-v1/hf-space-logs.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2)[:12000])
+          PY
+
+      - name: Commit logs to gh-pages
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tax-ai-v1/hf-space-logs.json
+          if git diff --cached --quiet; then
+            echo 'Logs unchanged.'
+          else
+            git commit -m 'Capture Hugging Face ZeroGPU logs'
+            git push origin HEAD:gh-pages
+          fi
