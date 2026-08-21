@@ -1,3 +1,4 @@
+# Diagnostic refresh after torchvision 0.24.1 fix.
 name: Diagnose Tax AI Hugging Face Space
 
 on:
@@ -28,7 +29,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python - <<'PY'
-          import json, os, time, traceback
+          import json, os, time
           from pathlib import Path
           from huggingface_hub import HfApi, fetch_space_logs
 
@@ -48,12 +49,12 @@ jobs:
                   lines=[]
                   for line in fetch_space_logs(repo_id, build=build, follow=False, token=token):
                       lines.append(str(line))
-                      if len(lines)>400: lines=lines[-400:]
-                  out[key]=''.join(lines)[-30000:]
+                      if len(lines)>500: lines=lines[-500:]
+                  out[key]=''.join(lines)[-40000:]
               except Exception as e:
                   out[key+'_error']=repr(e)
           Path('tax-ai-v1/hf-space-logs.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-          print(json.dumps(out,ensure_ascii=False,indent=2)[:12000])
+          print(json.dumps(out,ensure_ascii=False,indent=2)[:16000])
           PY
 
       - name: Commit logs to gh-pages
