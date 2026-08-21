@@ -1,0 +1,90 @@
+name: Test Tax AI invoice amount fields
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/test-tax-ai-amount-fields.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  amount-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+      - name: Install test deps and CJK font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-noto-cjk
+          python -m pip install requests pillow
+      - name: Generate synthetic Taiwan invoice amount block and call ZeroGPU
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import base64, io, json, os, time
+          from pathlib import Path
+          import requests
+          from PIL import Image, ImageDraw, ImageFont
+
+          W,H=1000,650
+          img=Image.new('RGB',(W,H),'white')
+          d=ImageDraw.Draw(img)
+          font_path='/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc'
+          f1=ImageFont.truetype(font_path,58)
+          f2=ImageFont.truetype(font_path,72)
+          d.text((60,45),'電子發票證明聯',font=f1,fill='black')
+          d.text((60,130),'發票號碼 YK-29683035',font=f1,fill='black')
+          d.text((60,220),'賣方 22456427   買方 54169882',font=f1,fill='black')
+          d.line((60,330,940,330),fill='black',width=3)
+          d.text((90,365),'銷售額',font=f1,fill='black'); d.text((600,365),'1000',font=f2,fill='black')
+          d.text((90,455),'稅額',font=f1,fill='black');   d.text((600,455),'50',font=f2,fill='black')
+          d.text((90,545),'總計',font=f1,fill='black');   d.text((600,545),'1050',font=f2,fill='black')
+          buf=io.BytesIO(); img.save(buf,format='PNG')
+          data_url='data:image/png;base64,'+base64.b64encode(buf.getvalue()).decode()
+
+          base='https://alexandroslee-tax-ai-zerogpu.hf.space'
+          token=os.environ['HF_TOKEN']
+          h={'Authorization':f'Bearer {token}','Content-Type':'application/json'}
+          out={'expected':{'sales_amount':1000,'tax_amount':50,'total_amount':1050},'tested_at_unix':int(time.time())}
+          t=time.time()
+          try:
+              r=requests.post(base+'/gradio_api/call/invoice_api',headers=h,json={'data':[data_url]},timeout=120)
+              out['submit_status']=r.status_code; out['submit_body']=r.text[:1000]
+              r.raise_for_status(); eid=r.json()['event_id']; out['event_id']=eid
+              rr=requests.get(base+f'/gradio_api/call/invoice_api/{eid}',headers={'Authorization':f'Bearer {token}'},timeout=180)
+              out['result_status']=rr.status_code; out['result_body']=rr.text[:12000]
+              payload=None
+              for line in rr.text.splitlines():
+                  if line.startswith('data:'):
+                      try:
+                          arr=json.loads(line[5:].strip())
+                          if isinstance(arr,list) and arr: payload=arr[0]
+                      except Exception: pass
+              out['result']=payload
+              data=((payload or {}).get('results') or [{}])[0].get('data') if isinstance(payload,dict) else None
+              out['recognized']=data
+              exp=out['expected']
+              out['amount_match']=bool(data and all(int(data.get(k))==v for k,v in exp.items()))
+          except Exception as e:
+              out['error']=f'{type(e).__name__}: {e}'
+          out['elapsed_sec']=round(time.time()-t,2)
+          Path('tax-ai-v1/hf-zerogpu-amount-test.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+      - name: Commit result
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tax-ai-v1/hf-zerogpu-amount-test.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Record invoice amount-field regression test'
+            git push origin HEAD:gh-pages
+          fi
