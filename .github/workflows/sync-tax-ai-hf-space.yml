@@ -1,4 +1,4 @@
-# Trigger 2026-08-22: sync and VERIFY real V1.5.0 backend.
+# Trigger 2026-08-22 15:28 +08: force sync and VERIFY real V1.5.0 backend.
 name: Sync Tax AI ZeroGPU Space
 
 on:
@@ -53,7 +53,6 @@ jobs:
           else:
               out['api_names']=[]
 
-          # Real contract check: call health_api through Gradio queue.
           health=None; health_error=None
           try:
               s=requests.post(base+'/gradio_api/call/health_api',headers={**headers,'Content-Type':'application/json'},json={'data':['health']},timeout=60)
