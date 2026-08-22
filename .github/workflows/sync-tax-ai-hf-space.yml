@@ -1,4 +1,4 @@
-# V1.5.2 full rebuild with release contract and issue-trigger fallback.
+# V1.5.2 deployment: verify remote source, wait for OLD runtime to leave RUNNING, then verify NEW runtime.
 name: Sync Tax AI ZeroGPU Space
 
 on:
@@ -24,14 +24,14 @@ jobs:
           ref: gh-pages
           fetch-depth: 0
       - run: python -m pip install --upgrade 'huggingface_hub>=1.5.0' requests
-      - name: Upload, factory rebuild, and verify exact release
+      - name: Upload, wait for new revision, factory rebuild, verify release
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python - <<'PY'
           import json, os, time, requests
           from pathlib import Path
-          from huggingface_hub import HfApi
+          from huggingface_hub import HfApi, hf_hub_download
 
           EXPECTED='1.5.2'
           RELEASE_ID='tax-ai-1.5.2-20260822-1555'
@@ -59,37 +59,91 @@ jobs:
               'trigger':os.getenv('GITHUB_EVENT_NAME','unknown'),
           }
 
-          api.restart_space(repo_id=repo_id, factory_reboot=True)
-          try:
-              api.wait_for_space(repo_id=repo_id, timeout=1800)
-          except Exception as e:
-              out['wait_warning']=repr(e)
+          # 1) Verify the Hub repository itself contains the new release BEFORE restarting.
+          remote_ok=False
+          for i in range(24):
+              try:
+                  p=hf_hub_download(repo_id=repo_id,repo_type='space',filename='app.py',token=token,force_download=True)
+                  txt=Path(p).read_text(encoding='utf-8')
+                  info=api.repo_info(repo_id=repo_id,repo_type='space')
+                  out['hub_revision']=getattr(info,'sha',None)
+                  out['hub_app_has_release']=RELEASE_ID in txt and f'BACKEND_VERSION = "{EXPECTED}"' in txt
+                  if out['hub_app_has_release']:
+                      remote_ok=True
+                      break
+              except Exception as e:
+                  out['hub_source_probe_error']=repr(e)
+              time.sleep(5)
+          if not remote_ok:
+              Path('tax-ai-v1/hf-space-sync.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+              raise RuntimeError('Hugging Face repo main/app.py did not converge to V1.5.2 source')
 
+          # 2) Rebuild from scratch. Do NOT immediately trust an old RUNNING status.
+          before=api.get_space_runtime(repo_id=repo_id)
+          out['runtime_before_restart']=str(before.stage)
+          api.restart_space(repo_id=repo_id,factory_reboot=True)
+
+          saw_transition=False
+          stages=[]
+          # Force a minimum grace period and observe BUILDING/STARTING/PAUSED etc.
+          time.sleep(8)
+          for i in range(90):
+              rt=api.get_space_runtime(repo_id=repo_id)
+              stage=str(rt.stage)
+              if not stages or stages[-1]!=stage: stages.append(stage)
+              if stage!='RUNNING': saw_transition=True
+              if saw_transition and stage=='RUNNING': break
+              time.sleep(5)
+          out['runtime_stages']=stages
+          out['saw_restart_transition']=saw_transition
+
+          # Even if HF transitions too quickly to observe, wait a fixed period before querying Gradio.
+          time.sleep(12)
           rt=api.get_space_runtime(repo_id=repo_id)
           out['stage']=str(rt.stage)
           out['hardware']=str(rt.hardware) if rt.hardware else None
 
-          r=requests.get(base+'/gradio_api/info',headers=headers,timeout=90)
-          out['info_http']=r.status_code
-          out['api_names']=[k for k in (r.json().get('named_endpoints') or {}).keys()] if r.ok else []
+          # 3) Poll the live Gradio schema until the NEW endpoint appears.
+          api_names=[]
+          info_http=None
+          for i in range(60):
+              try:
+                  r=requests.get(base+'/gradio_api/info',headers=headers,timeout=60)
+                  info_http=r.status_code
+                  if r.ok:
+                      api_names=[k for k in (r.json().get('named_endpoints') or {}).keys()]
+                      if '/tax_category_api' in api_names:
+                          break
+              except Exception as e:
+                  out['info_probe_error']=repr(e)
+              time.sleep(5)
+          out['info_http']=info_http
+          out['api_names']=api_names
 
+          # 4) Health contract must match both version and immutable release_id.
           health=None
-          try:
-              s=requests.post(base+'/gradio_api/call/health_api',headers={**headers,'Content-Type':'application/json'},json={'data':['health']},timeout=90)
-              out['health_submit_http']=s.status_code
-              s.raise_for_status()
-              eid=s.json()['event_id']
-              g=requests.get(base+f'/gradio_api/call/health_api/{eid}',headers=headers,timeout=180)
-              out['health_result_http']=g.status_code
-              g.raise_for_status()
-              for line in g.text.splitlines():
-                  if line.startswith('data:'):
-                      try:
-                          x=json.loads(line[5:].strip())
-                          if isinstance(x,list) and x: health=x[0]
-                      except Exception: pass
-          except Exception as e:
-              out['health_error']=repr(e)
+          for attempt in range(12):
+              try:
+                  s=requests.post(base+'/gradio_api/call/health_api',headers={**headers,'Content-Type':'application/json'},json={'data':['health']},timeout=90)
+                  out['health_submit_http']=s.status_code
+                  s.raise_for_status()
+                  eid=s.json()['event_id']
+                  g=requests.get(base+f'/gradio_api/call/health_api/{eid}',headers=headers,timeout=180)
+                  out['health_result_http']=g.status_code
+                  g.raise_for_status()
+                  last=None
+                  for line in g.text.splitlines():
+                      if line.startswith('data:'):
+                          try:
+                              x=json.loads(line[5:].strip())
+                              if isinstance(x,list) and x: last=x[0]
+                          except Exception: pass
+                  health=last
+                  if isinstance(health,dict) and health.get('backend_version')==EXPECTED and health.get('release_id')==RELEASE_ID:
+                      break
+              except Exception as e:
+                  out['health_error']=repr(e)
+              time.sleep(5)
 
           out['health']=health
           actual=(health or {}).get('backend_version') if isinstance(health,dict) else None
@@ -99,12 +153,19 @@ jobs:
           out['actual_release_id']=release
           out['tax_category_supported']=(health or {}).get('tax_category_supported') if isinstance(health,dict) else None
           out['dedicated_tax_category_api']=dedicated
-          out['verified']=(actual==EXPECTED and release==RELEASE_ID and out['tax_category_supported'] is True and dedicated is True and '/tax_category_api' in out['api_names'])
+          out['verified']=(
+              out.get('hub_app_has_release') is True
+              and actual==EXPECTED
+              and release==RELEASE_ID
+              and out['tax_category_supported'] is True
+              and dedicated is True
+              and '/tax_category_api' in api_names
+          )
 
           Path('tax-ai-v1/hf-space-sync.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(out,ensure_ascii=False,indent=2))
           if not out['verified']:
-              raise RuntimeError(f'Release mismatch: version={actual}, release={release}, apis={out["api_names"]}')
+              raise RuntimeError(f'Release mismatch after rebuild: version={actual}, release={release}, apis={api_names}, stages={stages}')
           PY
       - name: Commit verified sync status
         if: always()
