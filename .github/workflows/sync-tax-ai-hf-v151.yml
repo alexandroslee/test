@@ -1,3 +1,4 @@
+# trigger second commit so GitHub Actions runs this newly-created workflow
 name: Sync Tax AI HF V1.5.1
 
 on:
@@ -42,7 +43,8 @@ jobs:
                       if isinstance(x,list) and x: health=x[0]
                   except Exception: pass
           actual=(health or {}).get('backend_version');ded=(health or {}).get('dedicated_tax_category_api') is True
-          out={'repo_id':repo,'space_url':base,'uploaded':True,'commit':str(commit),'started_at_unix':int(time.time()),'expected_backend_version':'1.5.1','actual_backend_version':actual,'stage':str(api.get_space_runtime(repo_id=repo).stage),'hardware':str(api.get_space_runtime(repo_id=repo).hardware),'api_names':apis,'health':health,'verified':actual=='1.5.1' and ded and '/tax_category_api' in apis}
+          rt=api.get_space_runtime(repo_id=repo)
+          out={'repo_id':repo,'space_url':base,'uploaded':True,'commit':str(commit),'started_at_unix':int(time.time()),'expected_backend_version':'1.5.1','actual_backend_version':actual,'stage':str(rt.stage),'hardware':str(rt.hardware),'api_names':apis,'health':health,'verified':actual=='1.5.1' and ded and '/tax_category_api' in apis}
           Path('tax-ai-v1/hf-space-sync.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8');print(json.dumps(out,ensure_ascii=False,indent=2))
           if not out['verified']: raise RuntimeError('V1.5.1 contract not ready')
           PY
