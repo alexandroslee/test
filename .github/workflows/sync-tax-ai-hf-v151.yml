@@ -1,4 +1,4 @@
-# trigger second commit so GitHub Actions runs this newly-created workflow
+# V1.5.1: force Space restart after upload so the running process cannot stay on V1.5.0.
 name: Sync Tax AI HF V1.5.1
 
 on:
@@ -20,7 +20,7 @@ jobs:
           ref: gh-pages
           fetch-depth: 0
       - run: python -m pip install --upgrade 'huggingface_hub>=0.35' requests
-      - name: Upload and verify V1.5.1
+      - name: Upload, restart, and verify V1.5.1
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -29,24 +29,47 @@ jobs:
           from pathlib import Path
           from huggingface_hub import HfApi
           repo='AlexandrosLee/tax-ai-zerogpu';base='https://alexandroslee-tax-ai-zerogpu.hf.space';token=os.environ['HF_TOKEN'];api=HfApi(token=token)
-          commit=api.upload_folder(folder_path='hf-space-tax-ai',repo_id=repo,repo_type='space',commit_message='Deploy V1.5.1 dedicated tax-category API')
+          commit=api.upload_folder(folder_path='hf-space-tax-ai',repo_id=repo,repo_type='space',commit_message='Deploy V1.5.1 dedicated tax-category API and force restart')
+          print('uploaded',commit)
+          try:
+              api.restart_space(repo_id=repo)
+              print('restart requested')
+          except Exception as e:
+              print('restart warning',repr(e))
+          time.sleep(8)
           try: api.wait_for_space(repo_id=repo,timeout=1200)
           except Exception as e: print('wait:',repr(e))
+
           headers={'Authorization':'Bearer '+token}
-          info=requests.get(base+'/gradio_api/info',headers=headers,timeout=60);apis=list((info.json().get('named_endpoints') or {}).keys()) if info.ok else []
-          s=requests.post(base+'/gradio_api/call/health_api',headers={**headers,'Content-Type':'application/json'},json={'data':['health']},timeout=60);s.raise_for_status();eid=s.json()['event_id']
-          g=requests.get(base+f'/gradio_api/call/health_api/{eid}',headers=headers,timeout=120);g.raise_for_status();health=None
-          for line in g.text.splitlines():
-              if line.startswith('data:'):
-                  try:
-                      x=json.loads(line[5:].strip())
-                      if isinstance(x,list) and x: health=x[0]
-                  except Exception: pass
-          actual=(health or {}).get('backend_version');ded=(health or {}).get('dedicated_tax_category_api') is True
-          rt=api.get_space_runtime(repo_id=repo)
-          out={'repo_id':repo,'space_url':base,'uploaded':True,'commit':str(commit),'started_at_unix':int(time.time()),'expected_backend_version':'1.5.1','actual_backend_version':actual,'stage':str(rt.stage),'hardware':str(rt.hardware),'api_names':apis,'health':health,'verified':actual=='1.5.1' and ded and '/tax_category_api' in apis}
+          # Poll until the new process exposes V1.5.1 contract, not merely until HTTP is alive.
+          apis=[];health=None;last_error=None
+          deadline=time.time()+600
+          while time.time()<deadline:
+              try:
+                  info=requests.get(base+'/gradio_api/info',headers=headers,timeout=60)
+                  apis=list((info.json().get('named_endpoints') or {}).keys()) if info.ok else []
+                  s=requests.post(base+'/gradio_api/call/health_api',headers={**headers,'Content-Type':'application/json'},json={'data':['health']},timeout=60)
+                  if s.ok and s.json().get('event_id'):
+                      eid=s.json()['event_id'];g=requests.get(base+f'/gradio_api/call/health_api/{eid}',headers=headers,timeout=120)
+                      if g.ok:
+                          last=None
+                          for line in g.text.splitlines():
+                              if line.startswith('data:'):
+                                  try:
+                                      x=json.loads(line[5:].strip())
+                                      if isinstance(x,list) and x:last=x[0]
+                                  except Exception:pass
+                          health=last
+                  actual=(health or {}).get('backend_version') if isinstance(health,dict) else None
+                  ded=(health or {}).get('dedicated_tax_category_api') is True if isinstance(health,dict) else False
+                  if actual=='1.5.1' and ded and '/tax_category_api' in apis: break
+              except Exception as e:last_error=repr(e)
+              time.sleep(10)
+
+          rt=api.get_space_runtime(repo_id=repo);actual=(health or {}).get('backend_version') if isinstance(health,dict) else None;ded=(health or {}).get('dedicated_tax_category_api') is True if isinstance(health,dict) else False
+          out={'repo_id':repo,'space_url':base,'uploaded':True,'commit':str(commit),'started_at_unix':int(time.time()),'expected_backend_version':'1.5.1','actual_backend_version':actual,'stage':str(rt.stage),'hardware':str(rt.hardware),'api_names':apis,'health':health,'last_error':last_error,'verified':actual=='1.5.1' and ded and '/tax_category_api' in apis}
           Path('tax-ai-v1/hf-space-sync.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8');print(json.dumps(out,ensure_ascii=False,indent=2))
-          if not out['verified']: raise RuntimeError('V1.5.1 contract not ready')
+          if not out['verified']:raise RuntimeError('V1.5.1 process did not become active')
           PY
       - name: Commit verification
         if: always()
@@ -55,6 +78,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tax-ai-v1/hf-space-sync.json
           if ! git diff --cached --quiet; then
-            git commit -m 'Verify ZeroGPU V1.5.1 deployment'
+            git commit -m 'Verify ZeroGPU V1.5.1 deployment after restart'
             git push origin HEAD:gh-pages
           fi
