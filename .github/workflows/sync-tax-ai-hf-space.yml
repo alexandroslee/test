@@ -1,4 +1,4 @@
-# Trigger 2026-08-22 15:52 +08: FORCE rerun sync and VERIFY real V1.5.1 backend.
+# Trigger 2026-08-22 15:56 +08: V1.5.2 full rebuild with release contract.
 name: Sync Tax AI ZeroGPU Space
 
 on:
@@ -19,8 +19,8 @@ jobs:
         with:
           ref: gh-pages
           fetch-depth: 0
-      - run: python -m pip install --upgrade 'huggingface_hub>=0.35' requests
-      - name: Upload latest Space code, wait, and verify exact backend version
+      - run: python -m pip install --upgrade 'huggingface_hub>=1.5.0' requests
+      - name: Upload, factory rebuild, and verify exact release
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -29,40 +29,86 @@ jobs:
           from pathlib import Path
           from huggingface_hub import HfApi
 
-          EXPECTED='1.5.1'
+          EXPECTED='1.5.2'
+          RELEASE_ID='tax-ai-1.5.2-20260822-1555'
           repo_id='AlexandrosLee/tax-ai-zerogpu'
           base='https://alexandroslee-tax-ai-zerogpu.hf.space'
           token=os.environ['HF_TOKEN']
           headers={'Authorization':'Bearer '+token}
           api=HfApi(token=token)
-          commit=api.upload_folder(folder_path='hf-space-tax-ai',repo_id=repo_id,repo_type='space',commit_message='V1.5.1: dedicated cropped tax-category Vision API')
-          out={'repo_id':repo_id,'space_url':base,'uploaded':True,'commit':str(commit),'started_at_unix':int(time.time()),'expected_backend_version':EXPECTED}
-          try: api.wait_for_space(repo_id=repo_id,timeout=1200)
-          except Exception as e: out['wait_warning']=repr(e)
-          rt=api.get_space_runtime(repo_id=repo_id);out['stage']=str(rt.stage);out['hardware']=str(rt.hardware) if rt.hardware else None
-          r=requests.get(base+'/gradio_api/info',headers=headers,timeout=60);out['info_http']=r.status_code;out['api_names']=[k for k in (r.json().get('named_endpoints') or {}).keys()] if r.ok else []
-          health=None; health_error=None
+
+          commit=api.upload_folder(
+              folder_path='hf-space-tax-ai',
+              repo_id=repo_id,
+              repo_type='space',
+              commit_message=f'V{EXPECTED}: release {RELEASE_ID}',
+          )
+          out={
+              'repo_id':repo_id,
+              'space_url':base,
+              'uploaded':True,
+              'commit':str(commit),
+              'started_at_unix':int(time.time()),
+              'expected_backend_version':EXPECTED,
+              'expected_release_id':RELEASE_ID,
+              'factory_reboot':True,
+          }
+
+          # Critical: tear down the old runtime and rebuild without cached requirements/runtime.
+          api.restart_space(repo_id=repo_id, factory_reboot=True)
           try:
-              s=requests.post(base+'/gradio_api/call/health_api',headers={**headers,'Content-Type':'application/json'},json={'data':['health']},timeout=60);out['health_submit_http']=s.status_code;s.raise_for_status();eid=s.json()['event_id']
-              g=requests.get(base+f'/gradio_api/call/health_api/{eid}',headers=headers,timeout=120);out['health_result_http']=g.status_code;g.raise_for_status();last=None
+              api.wait_for_space(repo_id=repo_id, timeout=1800)
+          except Exception as e:
+              out['wait_warning']=repr(e)
+
+          rt=api.get_space_runtime(repo_id=repo_id)
+          out['stage']=str(rt.stage)
+          out['hardware']=str(rt.hardware) if rt.hardware else None
+
+          r=requests.get(base+'/gradio_api/info',headers=headers,timeout=90)
+          out['info_http']=r.status_code
+          out['api_names']=[k for k in (r.json().get('named_endpoints') or {}).keys()] if r.ok else []
+
+          health=None
+          try:
+              s=requests.post(base+'/gradio_api/call/health_api',headers={**headers,'Content-Type':'application/json'},json={'data':['health']},timeout=90)
+              out['health_submit_http']=s.status_code
+              s.raise_for_status()
+              eid=s.json()['event_id']
+              g=requests.get(base+f'/gradio_api/call/health_api/{eid}',headers=headers,timeout=180)
+              out['health_result_http']=g.status_code
+              g.raise_for_status()
               for line in g.text.splitlines():
                   if line.startswith('data:'):
                       try:
                           x=json.loads(line[5:].strip())
-                          if isinstance(x,list) and x:last=x[0]
-                      except Exception:pass
-              health=last
-          except Exception as e:health_error=repr(e)
+                          if isinstance(x,list) and x:
+                              health=x[0]
+                      except Exception:
+                          pass
+          except Exception as e:
+              out['health_error']=repr(e)
+
           out['health']=health
-          if health_error:out['health_error']=health_error
           actual=(health or {}).get('backend_version') if isinstance(health,dict) else None
+          release=(health or {}).get('release_id') if isinstance(health,dict) else None
+          dedicated=(health or {}).get('dedicated_tax_category_api') if isinstance(health,dict) else None
           out['actual_backend_version']=actual
+          out['actual_release_id']=release
           out['tax_category_supported']=(health or {}).get('tax_category_supported') if isinstance(health,dict) else None
-          out['dedicated_tax_category_api']=(health or {}).get('dedicated_tax_category_api') if isinstance(health,dict) else None
-          out['verified']=actual==EXPECTED and out['tax_category_supported'] is True and out['dedicated_tax_category_api'] is True and '/tax_category_api' in out['api_names']
+          out['dedicated_tax_category_api']=dedicated
+          out['verified']=(
+              actual==EXPECTED
+              and release==RELEASE_ID
+              and out['tax_category_supported'] is True
+              and dedicated is True
+              and '/tax_category_api' in out['api_names']
+          )
+
           Path('tax-ai-v1/hf-space-sync.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(out,ensure_ascii=False,indent=2))
-          if not out['verified']:raise RuntimeError(f'Backend mismatch: expected {EXPECTED}, got {actual}, dedicated={out["dedicated_tax_category_api"]}, apis={out["api_names"]}')
+          if not out['verified']:
+              raise RuntimeError(f'Release mismatch: version={actual}, release={release}, apis={out["api_names"]}')
           PY
       - name: Commit verified sync status
         if: always()
@@ -71,6 +117,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tax-ai-v1/hf-space-sync.json
           if ! git diff --cached --quiet; then
-            git commit -m 'Record verified ZeroGPU backend V1.5.1'
+            git commit -m 'Record verified ZeroGPU V1.5.2 release'
             git push origin HEAD:gh-pages
           fi
