@@ -1,11 +1,11 @@
 (function(){
   const d=document;
   const subtitle=d.querySelector('.top .muted');
-  if(subtitle)subtitle.textContent='V1.4.8｜QR 權威＋方向校正後 Gemma＋Queue 自動重試＋票面金額語義';
+  if(subtitle)subtitle.textContent='V1.4.9｜電子發票 QR 直接解析＋ZeroGPU Gemma 4 E4B 交叉驗證';
   const hero=d.querySelector('.hero');
-  if(hero)hero.innerHTML='<b>V1.4.8：</b>電子發票先以 QR 為最高權威來源；本地流程完成方向校正後，Gemma 4 E4B 會使用正向影像交叉辨識，不再直接送側轉原圖。QR 已取得的發票號碼、統編與金額不被模型覆蓋；「銷售額」＝未稅、「稅額」＝營業稅、「總計」＝含稅總額。電子發票不再執行手開發票的買受人 8 格流程。';
+  if(hero)hero.innerHTML='<b>V1.4.9：</b>電子發票不再等候 AI 才顯示金額。只要標準第一個 QR 成功讀取，系統直接從 QR 原始資料解析並立即回填：發票號碼、日期、賣方／買方統編、銷售額（未稅）、稅額與含稅總額。QR 是電子發票權威來源；Gemma 4 E4B 改為交叉驗證。';
   const scan=d.getElementById('scan');
-  if(scan)scan.textContent='✨ V1.4.8：QR＋方向校正＋ZeroGPU Gemma 4 E4B';
+  if(scan)scan.textContent='✨ V1.4.9：QR 直接解析＋AI 交叉驗證';
   const h2=d.querySelector('#hfZeroGpuCard h2');
-  if(h2)h2.textContent='☁️ 1.4.8 Hugging Face ZeroGPU｜Gemma 4 E4B';
+  if(h2)h2.textContent='☁️ 1.4.9 Hugging Face ZeroGPU｜Gemma 4 E4B';
 })();
