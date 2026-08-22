@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-Hant-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>AI 超簡易營業稅申報 V1.4.8｜Hugging Face ZeroGPU + Gemma 4 E4B</title>
+<title>AI 超簡易營業稅申報 V1.4.9｜電子發票 QR 直接解析 + ZeroGPU Gemma 4 E4B</title>
 <style>html,body{margin:0;background:#f4f7fb;font-family:"Microsoft JhengHei",system-ui,sans-serif}#app{display:block;width:100%;border:0;min-height:5800px;background:#f4f7fb}.loading{max-width:900px;margin:30px auto;padding:18px;background:#fff;border-radius:16px;border:1px solid #e2e8f0;color:#334155;font-weight:700}</style></head>
-<body><div id="loading" class="loading">正在載入 V1.4.8：QR 權威＋方向校正後 Gemma＋Queue 自動重試＋票面金額語義。</div><iframe id="app" src="../tax-ai-v034/?build=20260822-v148-hf" title="AI 超簡易營業稅申報 V1.4.8"></iframe>
+<body><div id="loading" class="loading">正在載入 V1.4.9：電子發票 QR 直接解析 → 金額立即回填；Gemma 4 E4B 改為交叉驗證。</div><iframe id="app" src="../tax-ai-v034/?build=20260822-v149-qr" title="AI 超簡易營業稅申報 V1.4.9"></iframe>
 <script>
 const frame=document.getElementById('app'),loading=document.getElementById('loading');
 frame.addEventListener('load',()=>{
@@ -10,17 +10,18 @@ frame.addEventListener('load',()=>{
     const d=frame.contentDocument;if(!d)throw new Error('無法讀取內嵌介面');
     const loadScript=src=>new Promise((ok,no)=>{const s=d.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(new Error('無法載入 '+src));d.body.appendChild(s)});
     (async()=>{
-      await loadScript('../tax-ai-v035/layout-v035.js?build=20260822-v148-hf');
-      await loadScript('../tax-ai-v036/perspective-v036.js?build=20260822-v148-hf');
-      await loadScript('../tax-ai-v037/grid-first-v0374.js?build=20260822-v148-hf');
-      await loadScript('../tax-ai-v1/gradio-resilient-v145.js?build=20260822-v148-hf');
-      await loadScript('../tax-ai-v1/hf-zerogpu-v14.js?build=20260822-v148-hf');
-      await loadScript('../tax-ai-v1/amount-reverse-v143.js?build=20260822-v148-hf');
-      await loadScript('../tax-ai-v1/ui-version-v145.js?build=20260822-v148-hf');
+      await loadScript('../tax-ai-v035/layout-v035.js?build=20260822-v149-qr');
+      await loadScript('../tax-ai-v036/perspective-v036.js?build=20260822-v149-qr');
+      await loadScript('../tax-ai-v037/grid-first-v0374.js?build=20260822-v149-qr');
+      await loadScript('../tax-ai-v1/gradio-resilient-v145.js?build=20260822-v149-qr');
+      await loadScript('../tax-ai-v1/hf-zerogpu-v14.js?build=20260822-v149-qr');
+      await loadScript('../tax-ai-v1/qr-authority-v149.js?build=20260822-v149-qr');
+      await loadScript('../tax-ai-v1/amount-reverse-v143.js?build=20260822-v149-qr');
+      await loadScript('../tax-ai-v1/ui-version-v145.js?build=20260822-v149-qr');
       loading.style.display='none';
       const resize=()=>{try{frame.style.height=Math.max(5800,d.documentElement.scrollHeight+120)+'px'}catch{}};
       resize();new ResizeObserver(resize).observe(d.documentElement);setInterval(resize,1200);
-    })().catch(e=>loading.textContent='V1.4.8 載入失敗：'+e.message);
-  }catch(e){loading.textContent='V1.4.8 載入失敗：'+e.message}
+    })().catch(e=>loading.textContent='V1.4.9 載入失敗：'+e.message);
+  }catch(e){loading.textContent='V1.4.9 載入失敗：'+e.message}
 });
 </script></body></html>
