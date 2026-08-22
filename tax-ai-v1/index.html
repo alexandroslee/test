@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="zh-Hant-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>AI 超簡易營業稅申報 V1.5.0｜真正前後端版本驗證</title>
+<title>AI 超簡易營業稅申報 V1.5.1｜課稅別核心辨識</title>
 <style>html,body{margin:0;background:#f4f7fb;font-family:"Microsoft JhengHei",system-ui,sans-serif}#app{display:block;width:100%;border:0;min-height:6200px;background:#f4f7fb}.loading{max-width:900px;margin:30px auto;padding:18px;background:#fff;border-radius:16px;border:1px solid #e2e8f0;color:#334155;font-weight:700}</style></head>
-<body><div id="loading" class="loading">正在載入真正 V1.5.0：Frontend V1.5.0＋ZeroGPU Backend V1.5.0 版本契約＋QR＋課稅別。</div><iframe id="app" src="../tax-ai-v034/?build=20260822-v150-real5" title="AI 超簡易營業稅申報 V1.5.0"></iframe>
+<body><div id="loading" class="loading">正在載入 V1.5.1：QR 結構判定＋課稅別專用裁切 Vision＋Gemma 4 E4B。</div><iframe id="app" src="../tax-ai-v034/?build=20260822-v151-core1" title="AI 超簡易營業稅申報 V1.5.1"></iframe>
 <script>
 const frame=document.getElementById('app'),loading=document.getElementById('loading');
 frame.addEventListener('load',()=>{
@@ -10,22 +10,21 @@ frame.addEventListener('load',()=>{
     const d=frame.contentDocument;if(!d)throw new Error('無法讀取內嵌介面');
     const loadScript=src=>new Promise((ok,no)=>{const s=d.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(new Error('無法載入 '+src));d.body.appendChild(s)});
     (async()=>{
-      await loadScript('../tax-ai-v035/layout-v035.js?build=20260822-v150-real5');
-      await loadScript('../tax-ai-v036/perspective-v036.js?build=20260822-v150-real5');
-      await loadScript('../tax-ai-v037/grid-first-v0374.js?build=20260822-v150-real5');
-      await loadScript('../tax-ai-v1/gradio-resilient-v145.js?build=20260822-v150-real5');
-      await loadScript('../tax-ai-v1/gemma-direct-channel-v150.js?build=20260822-v150-real5');
-      await loadScript('../tax-ai-v1/hf-zerogpu-v14.js?build=20260822-v150-real5');
-      await loadScript('../tax-ai-v1/backend-version-v150.js?build=20260822-v150-real5');
-      await loadScript('../tax-ai-v1/qr-authority-v149.js?build=20260822-v150-real5');
-      await loadScript('../tax-ai-v1/amount-reverse-v143.js?build=20260822-v150-real5');
-      await loadScript('../tax-ai-v1/tax-category-v150.js?build=20260822-v150-real5');
-      await loadScript('../tax-ai-v1/tax-category-local-mark-v150.js?build=20260822-v150-real5');
-      await loadScript('../tax-ai-v1/tax-category-gate-v150.js?build=20260822-v150-real5');
+      await loadScript('../tax-ai-v035/layout-v035.js?build=20260822-v151-core1');
+      await loadScript('../tax-ai-v036/perspective-v036.js?build=20260822-v151-core1');
+      await loadScript('../tax-ai-v037/grid-first-v0374.js?build=20260822-v151-core1');
+      await loadScript('../tax-ai-v1/gradio-resilient-v145.js?build=20260822-v151-core1');
+      await loadScript('../tax-ai-v1/gemma-direct-channel-v150.js?build=20260822-v151-core1');
+      await loadScript('../tax-ai-v1/hf-zerogpu-v14.js?build=20260822-v151-core1');
+      await loadScript('../tax-ai-v1/qr-authority-v149.js?build=20260822-v151-core1');
+      await loadScript('../tax-ai-v1/amount-reverse-v143.js?build=20260822-v151-core1');
+      await loadScript('../tax-ai-v1/tax-category-v151.js?build=20260822-v151-core1');
+      await loadScript('../tax-ai-v1/backend-version-v151.js?build=20260822-v151-core1');
+      await loadScript('../tax-ai-v1/tax-category-gate-v150.js?build=20260822-v151-core1');
       loading.style.display='none';
       const resize=()=>{try{frame.style.height=Math.max(6200,d.documentElement.scrollHeight+120)+'px'}catch{}};
       resize();new ResizeObserver(resize).observe(d.documentElement);setInterval(resize,1200);
-    })().catch(e=>loading.textContent='V1.5.0 載入失敗：'+e.message);
-  }catch(e){loading.textContent='V1.5.0 載入失敗：'+e.message}
+    })().catch(e=>loading.textContent='V1.5.1 載入失敗：'+e.message);
+  }catch(e){loading.textContent='V1.5.1 載入失敗：'+e.message}
 });
 </script></body></html>
