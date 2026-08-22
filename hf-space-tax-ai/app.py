@@ -1,3 +1,4 @@
+# Tax AI ZeroGPU backend V1.5.0
 # IMPORTANT: ZeroGPU requires `spaces` before torch/CUDA imports.
 import spaces
 
@@ -9,10 +10,13 @@ import torch
 from PIL import Image
 from transformers import AutoModelForMultimodalLM, AutoProcessor
 
+BACKEND_VERSION = "1.5.0"
 MODEL_ID = "google/gemma-4-E4B-it"
 HF_TOKEN = os.getenv("HF_TOKEN") or None
+ALLOWED_TAX_CATEGORIES = {"應稅", "零稅率", "免稅", "待確認"}
 
 processor = AutoProcessor.from_pretrained(MODEL_ID, token=HF_TOKEN)
+# Gemma 4: high visual-token budget for OCR / small printed marks.
 processor.image_processor.max_soft_tokens = 1120
 model = AutoModelForMultimodalLM.from_pretrained(
     MODEL_ID, token=HF_TOKEN, dtype=torch.bfloat16
@@ -23,7 +27,7 @@ model.eval()
 INVOICE_PROMPT = r"""
 你是台灣統一發票影像辨識模型。只能依圖片上實際可見內容抽取資料，不可猜測、不可用統編檢查碼修字。
 
-只輸出 JSON：
+只輸出 JSON，欄位固定如下：
 {
   "invoice_type": "電子發票|二聯式發票|三聯式發票|其他",
   "invoice_number": "AA-12345678 或空字串",
@@ -34,6 +38,9 @@ INVOICE_PROMPT = r"""
   "sales_amount": 整數或 null,
   "tax_amount": 整數或 null,
   "total_amount": 整數或 null,
+  "tax_category": "應稅|零稅率|免稅|待確認",
+  "tax_category_source": "票面勾選|票面文字|無法辨識",
+  "tax_category_evidence": "簡短描述你在票面看到的實際位置與符號",
   "confidence": 0.0到1.0
 }
 
@@ -43,17 +50,26 @@ INVOICE_PROMPT = r"""
 3. 不可交換 buyer_tax_id 與 seller_tax_id。
 4. invoice_number 是 2 個英文字母 + 8 個數字，不可把統編當發票號碼。
 
-【金額欄位是最高優先級，請逐字對照印刷標籤】
-5. 發票底部或金額區看到「銷售額」：其旁邊的金額就是 sales_amount，也就是「未稅金額」。
-6. 看到「營業稅」或「稅額」：其旁邊的金額就是 tax_amount。
-7. 看到「總計」「合計」「總額」：其旁邊的金額就是 total_amount，也就是「含稅總額」。
-8. 若同一張發票清楚印出「銷售額／稅額／總計」三列，必須優先直接讀取三個印刷數字，不要用 5% 公式反算取代原圖數字。
-9. 可用 sales_amount + tax_amount = total_amount 做一致性檢查，但只能檢查，絕對不可為了讓算式成立而修改任何 OCR 讀到的數字。
-10. 若某一金額真的看不清楚，該欄回 null；不要硬猜。
+【金額欄位】
+5. 「銷售額」旁的金額 = sales_amount = 未稅金額。
+6. 「營業稅」或「稅額」旁的金額 = tax_amount。
+7. 「總計」「合計」「總額」旁的金額 = total_amount = 含稅總額。
+8. 如果票面清楚印出三個數字，必須直接讀票面；不要用 5% 公式取代票面值。
+9. sales_amount + tax_amount = total_amount 只能做一致性檢查，不可用來修改 OCR 數字。
+
+【課稅別：V1.5.0 最高優先規則】
+10. 必須仔細查看票面是否有「應稅」「零稅率」「免稅」三個標籤，以及其上方、下方、旁邊或底線附近的 V、✓、勾、圈選、黑點或其他明顯選取符號。
+11. 課稅別的證據優先序：票面選取符號 > 明確票面文字敘述 > 金額邏輯。模型本身只負責回報票面視覺證據；不要只因為稅額 > 0 就聲稱你看到了勾選。
+12. 若 V／✓／勾明確落在「應稅」欄，tax_category="應稅"，tax_category_source="票面勾選"。
+13. 若明確落在「零稅率」欄，tax_category="零稅率"；若明確落在「免稅」欄，tax_category="免稅"。
+14. 若三個標籤存在但符號位置看不清楚，tax_category="待確認"，不可猜測。
+15. tax_category_evidence 必須描述真正看到的證據，例如：「V 位於『應稅』下方，『零稅率』『免稅』欄未見標記」。
+16. 本張電子發票常見版面可能是同一列：「應稅 V　零稅率___　免稅___」。請依符號實際相對位置判斷。
 
 【電子發票】
-11. 若票面印有「銷售額」「稅額」「總計／總額」，同樣依上述對應關係填入。
-12. 僅回傳 JSON，不要解釋。
+17. 電子發票 QR 是號碼、統編與金額的權威來源；Vision 主要用來交叉辨識票面文字與課稅別勾選。
+18. 看不清楚的欄位回空字串、null 或「待確認」，不可硬猜。
+19. 僅回傳 JSON，不要解釋。
 """.strip()
 
 BUYER_BAN_PROMPT = r"""
@@ -137,6 +153,18 @@ def _money(v: Any):
         return None
 
 
+def _clean_tax_category(v: Any) -> str:
+    s = str(v or "").strip()
+    if s in ALLOWED_TAX_CATEGORIES:
+        return s
+    aliases = {
+        "taxable": "應稅", "tax": "應稅", "5%": "應稅",
+        "zero-rated": "零稅率", "zero rated": "零稅率", "0%": "零稅率",
+        "exempt": "免稅",
+    }
+    return aliases.get(s.lower(), "待確認")
+
+
 def _generate(image: Image.Image, prompt: str, max_new_tokens: int):
     messages = [{"role": "user", "content": [
         {"type": "image", "url": _image_data_url(image)},
@@ -173,15 +201,21 @@ def _generate(image: Image.Image, prompt: str, max_new_tokens: int):
 def invoice_api(image_data: str) -> dict:
     started = time.time()
     image = _decode_image(image_data)
-    raw, vision_debug = _generate(image, INVOICE_PROMPT, 700)
+    raw, vision_debug = _generate(image, INVOICE_PROMPT, 850)
     obj = _extract_json(raw)
 
     sales = _money(obj.get("sales_amount"))
     tax = _money(obj.get("tax_amount"))
     total = _money(obj.get("total_amount"))
+    category = _clean_tax_category(obj.get("tax_category"))
+    category_source = str(obj.get("tax_category_source") or "無法辨識").strip()
+    category_evidence = str(obj.get("tax_category_evidence") or "").strip()
+
     warnings = []
     if sales is not None and tax is not None and total is not None and sales + tax != total:
         warnings.append(f"金額一致性警告：銷售額 {sales} + 稅額 {tax} != 總計 {total}；保留原圖辨識值，不自動改字。")
+    if category in {"零稅率", "免稅"} and tax is not None and tax > 0:
+        warnings.append(f"課稅別交叉檢查警告：票面 Vision 判為「{category}」，但稅額 {tax} > 0；不自動改值，請人工核對。")
 
     data = {
         "invoice_type": str(obj.get("invoice_type") or "其他"),
@@ -193,6 +227,9 @@ def invoice_api(image_data: str) -> dict:
         "sales_amount": sales,
         "tax_amount": tax,
         "total_amount": total,
+        "tax_category": category,
+        "tax_category_source": category_source,
+        "tax_category_evidence": category_evidence,
     }
     try:
         confidence = max(0.0, min(1.0, float(obj.get("confidence") or 0)))
@@ -200,11 +237,12 @@ def invoice_api(image_data: str) -> dict:
         confidence = 0.0
 
     return {
+        "backend_version": BACKEND_VERSION,
         "count": 1,
         "results": [{
             "data": data,
             "confidence": confidence,
-            "source": "hf-zerogpu-gemma4-e4b",
+            "source": "hf-zerogpu-gemma4-e4b-v150",
             "raw_text": raw,
             "warnings": warnings,
             "elapsed_ms": int((time.time() - started) * 1000),
@@ -215,9 +253,15 @@ def invoice_api(image_data: str) -> dict:
                 "total_amount": "票面『總計／合計／總額』＝含稅總額",
                 "printed_values_preferred": True,
             },
+            "tax_category_semantics": {
+                "priority": ["票面勾選", "票面文字", "金額交叉驗證"],
+                "allowed": ["應稅", "零稅率", "免稅", "待確認"],
+                "visual_evidence_required_for_visual_claim": True,
+            },
         }],
         "model": MODEL_ID,
         "checksum_used": False,
+        "tax_category_supported": True,
     }
 
 
@@ -240,6 +284,7 @@ def buyer_ban_api(image_data: str) -> dict:
     except Exception:
         confidence = 0.0
     return {
+        "backend_version": BACKEND_VERSION,
         "buyer_tax_id": ban or None,
         "digits": digits,
         "confidence": confidence,
@@ -255,10 +300,12 @@ def health_api() -> dict:
     return {
         "status": "ok",
         "backend": "huggingface-zerogpu",
+        "backend_version": BACKEND_VERSION,
         "model": MODEL_ID,
         "gpu_mode": "ZeroGPU",
         "visual_token_budget": int(processor.image_processor.max_soft_tokens),
-        "amount_labels_v144": True,
+        "tax_category_supported": True,
+        "tax_category_values": ["應稅", "零稅率", "免稅", "待確認"],
         "checksum_used": False,
     }
 
@@ -277,8 +324,8 @@ def ui_buyer(image: Image.Image):
     return {"error": "請上傳8格裁切影像"} if image is None else buyer_ban_api(_to_data_url(image))
 
 
-with gr.Blocks(title="Tax AI ZeroGPU — Gemma 4 E4B") as demo:
-    gr.Markdown("# 🧾 Tax AI ZeroGPU — Gemma 4 E4B\n台灣發票金額語義：銷售額＝未稅、稅額＝營業稅、總計＝含稅總額。")
+with gr.Blocks(title="Tax AI ZeroGPU V1.5.0 — Gemma 4 E4B") as demo:
+    gr.Markdown("# 🧾 Tax AI ZeroGPU V1.5.0 — Gemma 4 E4B\n台灣發票：QR 金額＋課稅別（應稅／零稅率／免稅）票面辨識。")
     with gr.Tab("整張發票"):
         img1 = gr.Image(type="pil", label="發票影像")
         out1 = gr.JSON(label="辨識結果")
