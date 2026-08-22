@@ -1,4 +1,4 @@
-# Trigger 2026-08-22: sync V1.4.4 Taiwan invoice amount labels.
+# Trigger 2026-08-22: sync V1.5.0 Taiwan invoice tax-category recognition.
 name: Sync Tax AI ZeroGPU Space
 
 on:
@@ -31,8 +31,8 @@ jobs:
           repo_id='AlexandrosLee/tax-ai-zerogpu'
           base='https://alexandroslee-tax-ai-zerogpu.hf.space'
           api=HfApi(token=os.environ['HF_TOKEN'])
-          commit=api.upload_folder(folder_path='hf-space-tax-ai',repo_id=repo_id,repo_type='space',commit_message='V1.4.4: Taiwan invoice amount labels')
-          out={'repo_id':repo_id,'space_url':base,'uploaded':True,'commit':str(commit),'started_at_unix':int(time.time())}
+          commit=api.upload_folder(folder_path='hf-space-tax-ai',repo_id=repo_id,repo_type='space',commit_message='V1.5.0: tax category checkbox recognition')
+          out={'repo_id':repo_id,'space_url':base,'uploaded':True,'commit':str(commit),'started_at_unix':int(time.time()),'version':'1.5.0'}
           try:
               api.wait_for_space(repo_id=repo_id,timeout=1200)
           except Exception as e: out['wait_warning']=repr(e)
