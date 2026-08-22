@@ -1,4 +1,4 @@
-# Trigger 2026-08-22 15:56 +08: V1.5.2 full rebuild with release contract.
+# V1.5.2 full rebuild with release contract and issue-trigger fallback.
 name: Sync Tax AI ZeroGPU Space
 
 on:
@@ -7,12 +7,16 @@ on:
     branches: [master]
     paths:
       - '.github/workflows/sync-tax-ai-hf-space.yml'
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   sync:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, '[tax-ai-deploy]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,9 +56,9 @@ jobs:
               'expected_backend_version':EXPECTED,
               'expected_release_id':RELEASE_ID,
               'factory_reboot':True,
+              'trigger':os.getenv('GITHUB_EVENT_NAME','unknown'),
           }
 
-          # Critical: tear down the old runtime and rebuild without cached requirements/runtime.
           api.restart_space(repo_id=repo_id, factory_reboot=True)
           try:
               api.wait_for_space(repo_id=repo_id, timeout=1800)
@@ -82,10 +86,8 @@ jobs:
                   if line.startswith('data:'):
                       try:
                           x=json.loads(line[5:].strip())
-                          if isinstance(x,list) and x:
-                              health=x[0]
-                      except Exception:
-                          pass
+                          if isinstance(x,list) and x: health=x[0]
+                      except Exception: pass
           except Exception as e:
               out['health_error']=repr(e)
 
@@ -97,13 +99,7 @@ jobs:
           out['actual_release_id']=release
           out['tax_category_supported']=(health or {}).get('tax_category_supported') if isinstance(health,dict) else None
           out['dedicated_tax_category_api']=dedicated
-          out['verified']=(
-              actual==EXPECTED
-              and release==RELEASE_ID
-              and out['tax_category_supported'] is True
-              and dedicated is True
-              and '/tax_category_api' in out['api_names']
-          )
+          out['verified']=(actual==EXPECTED and release==RELEASE_ID and out['tax_category_supported'] is True and dedicated is True and '/tax_category_api' in out['api_names'])
 
           Path('tax-ai-v1/hf-space-sync.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(out,ensure_ascii=False,indent=2))
