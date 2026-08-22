@@ -1,0 +1,122 @@
+name: Test Tax AI V1.5.0 tax category
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/test-tax-ai-tax-category-v150.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-noto-cjk
+          python -m pip install requests pillow
+      - name: Wait for V1.5.0 and test taxable mark
+        run: |
+          python - <<'PY'
+          import base64, io, json, time
+          from pathlib import Path
+          import requests
+          from PIL import Image, ImageDraw, ImageFont
+
+          base='https://alexandroslee-tax-ai-zerogpu.hf.space'
+
+          def gradio_call(name,data,submit_timeout=60,result_timeout=240):
+              s=requests.post(base+f'/gradio_api/call/{name}',json={'data':data},timeout=submit_timeout)
+              s.raise_for_status()
+              eid=s.json()['event_id']
+              r=requests.get(base+f'/gradio_api/call/{name}/{eid}',timeout=result_timeout)
+              r.raise_for_status()
+              event='';last=None;complete=None
+              for line in r.text.splitlines():
+                  if line.startswith('event:'): event=line[6:].strip()
+                  elif line.startswith('data:'):
+                      try:
+                          v=json.loads(line[5:].strip());last=v
+                          if event=='complete': complete=v
+                      except Exception: pass
+              v=complete if complete is not None else last
+              return v[0] if isinstance(v,list) and v else v
+
+          out={'expected':{'tax_category':'應稅','sales_amount':848,'tax_amount':42,'total_amount':890},'space':base,'tested_at_unix':int(time.time())}
+
+          # Wait until the new backend is really online rather than testing a stale Space build.
+          deadline=time.time()+900
+          health=None
+          while time.time()<deadline:
+              try:
+                  health=gradio_call('health_api',['health'],30,60)
+                  if isinstance(health,dict) and health.get('version')=='1.5.0' and health.get('tax_category') is True:
+                      break
+              except Exception as e:
+                  out['last_health_error']=repr(e)
+              time.sleep(15)
+          out['health']=health
+          if not (isinstance(health,dict) and health.get('version')=='1.5.0'):
+              out['error']='V1.5.0 backend did not become ready within 15 minutes'
+              Path('tax-ai-v1/tax-category-v150-test.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+              print(json.dumps(out,ensure_ascii=False,indent=2))
+              raise SystemExit(1)
+
+          W,H=1200,780
+          img=Image.new('RGB',(W,H),'white')
+          d=ImageDraw.Draw(img)
+          fp='/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc'
+          fb='/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc'
+          f=ImageFont.truetype(fp,48); bold=ImageFont.truetype(fb,58); small=ImageFont.truetype(fp,40)
+          d.rectangle((18,18,W-18,H-18),outline='black',width=3)
+          d.text((70,55),'電子發票證明聯',font=bold,fill='black')
+          d.text((70,145),'YK-29683035',font=bold,fill='black')
+          d.text((70,225),'賣方 22456427    買方 54169882',font=f,fill='black')
+          d.line((60,315,W-60,315),fill='black',width=2)
+          d.text((90,355),'數量     單價       金額',font=f,fill='black')
+          d.text((90,420),'1        848        848',font=f,fill='black')
+          # Invoice-like tax category row. V is visually next to/under taxable, while other choices are blank.
+          d.text((90,505),'應稅',font=f,fill='black')
+          d.text((185,505),'V',font=bold,fill='black')
+          d.text((330,505),'零稅率 ____',font=f,fill='black')
+          d.text((650,505),'免稅 ____',font=f,fill='black')
+          d.text((90,600),'銷售額  848      稅額  42      總計  890',font=f,fill='black')
+          b=io.BytesIO();img.save(b,format='PNG')
+          data='data:image/png;base64,'+base64.b64encode(b.getvalue()).decode()
+          Path('tax-ai-v1/tax-category-v150-test.png').write_bytes(b.getvalue())
+
+          t=time.time()
+          try:
+              result=gradio_call('invoice_api',[data],60,300)
+              out['result']=result
+              first=((result or {}).get('results') or [{}])[0] if isinstance(result,dict) else {}
+              dd=first.get('data') or {}
+              out['recognized']={k:dd.get(k) for k in ['tax_category','tax_category_source','tax_category_evidence','sales_amount','tax_amount','total_amount']}
+              out['tax_category_match']=dd.get('tax_category')=='應稅'
+              out['amount_match']=dd.get('sales_amount')==848 and dd.get('tax_amount')==42 and dd.get('total_amount')==890
+              out['pass']=bool(out['tax_category_match'] and out['amount_match'])
+          except Exception as e:
+              out['error']=f'{type(e).__name__}: {e}'
+          out['elapsed_sec']=round(time.time()-t,2)
+          Path('tax-ai-v1/tax-category-v150-test.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          if not out.get('pass'):
+              raise SystemExit(2)
+          PY
+      - name: Commit regression result
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tax-ai-v1/tax-category-v150-test.json tax-ai-v1/tax-category-v150-test.png
+          if ! git diff --cached --quiet; then
+            git commit -m 'Record V1.5.0 tax-category regression result'
+            git push origin HEAD:gh-pages
+          fi
