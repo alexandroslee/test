@@ -1,0 +1,33 @@
+{
+  "expected": {
+    "tax_category": "應稅",
+    "sales_amount": 848,
+    "tax_amount": 42,
+    "total_amount": 890
+  },
+  "space": "https://alexandroslee-tax-ai-zerogpu.hf.space",
+  "tested_at_unix": 1787382869,
+  "health": {
+    "status": "ok",
+    "backend": "huggingface-zerogpu",
+    "model": "google/gemma-4-E4B-it",
+    "version": "1.5.0",
+    "gpu_mode": "ZeroGPU",
+    "visual_token_budget": 1120,
+    "tax_category": true,
+    "checksum_used": false
+  },
+  "result": null,
+  "recognized": {
+    "tax_category": null,
+    "tax_category_source": null,
+    "tax_category_evidence": null,
+    "sales_amount": null,
+    "tax_amount": null,
+    "total_amount": null
+  },
+  "tax_category_match": false,
+  "amount_match": false,
+  "pass": false,
+  "elapsed_sec": 60.36
+}
