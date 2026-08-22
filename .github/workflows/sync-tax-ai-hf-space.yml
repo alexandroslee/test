@@ -1,4 +1,4 @@
-# Trigger 2026-08-22 15:38 +08: sync and VERIFY real V1.5.1 backend.
+# Trigger 2026-08-22 15:40 +08: FORCE rerun sync and VERIFY real V1.5.1 backend.
 name: Sync Tax AI ZeroGPU Space
 
 on:
@@ -41,7 +41,6 @@ jobs:
           except Exception as e: out['wait_warning']=repr(e)
           rt=api.get_space_runtime(repo_id=repo_id);out['stage']=str(rt.stage);out['hardware']=str(rt.hardware) if rt.hardware else None
           r=requests.get(base+'/gradio_api/info',headers=headers,timeout=60);out['info_http']=r.status_code;out['api_names']=[k for k in (r.json().get('named_endpoints') or {}).keys()] if r.ok else []
-
           health=None; health_error=None
           try:
               s=requests.post(base+'/gradio_api/call/health_api',headers={**headers,'Content-Type':'application/json'},json={'data':['health']},timeout=60);out['health_submit_http']=s.status_code;s.raise_for_status();eid=s.json()['event_id']
