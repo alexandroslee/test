@@ -3,18 +3,18 @@
   "space_url": "https://alexandroslee-tax-ai-zerogpu.hf.space",
   "uploaded": true,
   "commit": "https://huggingface.co/spaces/AlexandrosLee/tax-ai-zerogpu/commit/e7493733fc7649c5aa52fd19c89cfd6816a198f6",
-  "started_at_unix": 1787386138,
+  "started_at_unix": 1787527482,
   "expected_backend_version": "1.5.2",
   "expected_release_id": "tax-ai-1.5.2-20260822-1555",
   "factory_reboot": true,
-  "trigger": "issues",
+  "trigger": "push",
   "hub_revision": "e7493733fc7649c5aa52fd19c89cfd6816a198f6",
   "hub_app_has_release": true,
-  "restart_requested_at_unix": 1787386138,
+  "restart_requested_at_unix": 1787527483,
   "last_probes": [
     {
       "attempt": 109,
-      "unix": 1787386731,
+      "unix": 1787528146,
       "stage": "RUNNING",
       "hardware": "zero-a10g",
       "info_http": 200,
@@ -26,7 +26,7 @@
     },
     {
       "attempt": 110,
-      "unix": 1787386737,
+      "unix": 1787528152,
       "stage": "RUNNING",
       "hardware": "zero-a10g",
       "info_http": 200,
@@ -38,7 +38,7 @@
     },
     {
       "attempt": 111,
-      "unix": 1787386742,
+      "unix": 1787528158,
       "stage": "RUNNING",
       "hardware": "zero-a10g",
       "info_http": 200,
@@ -50,7 +50,7 @@
     },
     {
       "attempt": 112,
-      "unix": 1787386748,
+      "unix": 1787528164,
       "stage": "RUNNING",
       "hardware": "zero-a10g",
       "info_http": 200,
@@ -62,7 +62,7 @@
     },
     {
       "attempt": 113,
-      "unix": 1787386753,
+      "unix": 1787528170,
       "stage": "RUNNING",
       "hardware": "zero-a10g",
       "info_http": 200,
@@ -74,7 +74,7 @@
     },
     {
       "attempt": 114,
-      "unix": 1787386759,
+      "unix": 1787528176,
       "stage": "RUNNING",
       "hardware": "zero-a10g",
       "info_http": 200,
@@ -86,7 +86,7 @@
     },
     {
       "attempt": 115,
-      "unix": 1787386764,
+      "unix": 1787528182,
       "stage": "RUNNING",
       "hardware": "zero-a10g",
       "info_http": 200,
@@ -98,7 +98,7 @@
     },
     {
       "attempt": 116,
-      "unix": 1787386770,
+      "unix": 1787528188,
       "stage": "RUNNING",
       "hardware": "zero-a10g",
       "info_http": 200,
@@ -110,7 +110,7 @@
     },
     {
       "attempt": 117,
-      "unix": 1787386775,
+      "unix": 1787528195,
       "stage": "RUNNING",
       "hardware": "zero-a10g",
       "info_http": 200,
@@ -122,7 +122,7 @@
     },
     {
       "attempt": 118,
-      "unix": 1787386781,
+      "unix": 1787528201,
       "stage": "RUNNING",
       "hardware": "zero-a10g",
       "info_http": 200,
@@ -134,7 +134,7 @@
     },
     {
       "attempt": 119,
-      "unix": 1787386786,
+      "unix": 1787528207,
       "stage": "RUNNING",
       "hardware": "zero-a10g",
       "info_http": 200,
@@ -146,7 +146,7 @@
     },
     {
       "attempt": 120,
-      "unix": 1787386792,
+      "unix": 1787528213,
       "stage": "RUNNING",
       "hardware": "zero-a10g",
       "info_http": 200,
