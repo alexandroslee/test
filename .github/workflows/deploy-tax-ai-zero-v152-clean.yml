@@ -1,3 +1,4 @@
+# Trigger clean V1.5.2 deployment 2026-08-24
 name: Deploy clean Tax AI V1.5.2 ZeroGPU
 
 on:
@@ -27,55 +28,24 @@ jobs:
           import json, os, time, requests
           from pathlib import Path
           from huggingface_hub import HfApi
-
-          EXPECTED='1.5.2'
-          RELEASE_ID='tax-ai-1.5.2-20260822-1555'
-          repo_id='AlexandrosLee/tax-ai-zerogpu-v152'
-          base='https://alexandroslee-tax-ai-zerogpu-v152.hf.space'
-          token=os.environ['HF_TOKEN']
-          headers={'Authorization':'Bearer '+token}
-          api=HfApi(token=token)
-
-          api.create_repo(
-              repo_id=repo_id,
-              repo_type='space',
-              space_sdk='gradio',
-              space_hardware='zero-a10g',
-              exist_ok=True,
-              private=False,
-          )
-          commit=api.upload_folder(
-              folder_path='hf-space-tax-ai',
-              repo_id=repo_id,
-              repo_type='space',
-              commit_message=f'Clean V{EXPECTED}: {RELEASE_ID}',
-          )
-          out={
-              'repo_id':repo_id,
-              'space_url':base,
-              'repo_url':'https://huggingface.co/spaces/'+repo_id,
-              'commit':str(commit),
-              'expected_backend_version':EXPECTED,
-              'expected_release_id':RELEASE_ID,
-              'started_at_unix':int(time.time()),
-          }
-
+          EXPECTED='1.5.2'; RELEASE_ID='tax-ai-1.5.2-20260822-1555'
+          repo_id='AlexandrosLee/tax-ai-zerogpu-v152'; base='https://alexandroslee-tax-ai-zerogpu-v152.hf.space'
+          token=os.environ['HF_TOKEN']; headers={'Authorization':'Bearer '+token}; api=HfApi(token=token)
+          api.create_repo(repo_id=repo_id,repo_type='space',space_sdk='gradio',space_hardware='zero-a10g',exist_ok=True,private=False)
+          commit=api.upload_folder(folder_path='hf-space-tax-ai',repo_id=repo_id,repo_type='space',commit_message=f'Clean V{EXPECTED}: {RELEASE_ID}')
+          out={'repo_id':repo_id,'space_url':base,'repo_url':'https://huggingface.co/spaces/'+repo_id,'commit':str(commit),'expected_backend_version':EXPECTED,'expected_release_id':RELEASE_ID,'started_at_unix':int(time.time())}
           health=None; api_names=[]; probes=[]
           for attempt in range(150):
               p={'attempt':attempt+1,'unix':int(time.time())}
               try:
-                  rt=api.get_space_runtime(repo_id=repo_id)
-                  p['stage']=str(rt.stage);p['hardware']=str(rt.hardware) if rt.hardware else None;p['requested_hardware']=str(rt.requested_hardware) if rt.requested_hardware else None
+                  rt=api.get_space_runtime(repo_id=repo_id);p['stage']=str(rt.stage);p['hardware']=str(rt.hardware) if rt.hardware else None;p['requested_hardware']=str(rt.requested_hardware) if rt.requested_hardware else None
               except Exception as e:p['runtime_error']=repr(e)
               try:
-                  r=requests.get(base+'/gradio_api/info',headers=headers,timeout=30)
-                  p['info_http']=r.status_code
-                  if r.ok:
-                      api_names=list((r.json().get('named_endpoints') or {}).keys());p['api_names']=api_names
+                  r=requests.get(base+'/gradio_api/info',headers=headers,timeout=30);p['info_http']=r.status_code
+                  if r.ok:api_names=list((r.json().get('named_endpoints') or {}).keys());p['api_names']=api_names
               except Exception as e:p['info_error']=repr(e)
               try:
-                  s=requests.post(base+'/gradio_api/call/health_api',headers={**headers,'Content-Type':'application/json'},json={'data':['health']},timeout=30)
-                  p['health_submit_http']=s.status_code
+                  s=requests.post(base+'/gradio_api/call/health_api',headers={**headers,'Content-Type':'application/json'},json={'data':['health']},timeout=30);p['health_submit_http']=s.status_code
                   if s.ok and s.json().get('event_id'):
                       eid=s.json()['event_id'];g=requests.get(base+f'/gradio_api/call/health_api/{eid}',headers=headers,timeout=90);p['health_result_http']=g.status_code
                       if g.ok:
@@ -83,7 +53,7 @@ jobs:
                           for line in g.text.splitlines():
                               if line.startswith('data:'):
                                   try:
-                                      x=json.loads(line[5:].strip())
+                                      x=json.loads(line[5:].strip());
                                       if isinstance(x,list) and x:last=x[0]
                                   except Exception:pass
                           health=last
@@ -91,16 +61,12 @@ jobs:
               except Exception as e:p['health_error']=repr(e)
               probes.append(p)
               if len(probes)>15:probes=probes[-15:]
-              if isinstance(health,dict) and health.get('backend_version')==EXPECTED and health.get('release_id')==RELEASE_ID and health.get('dedicated_tax_category_api') is True and '/tax_category_api' in api_names:
-                  break
+              if isinstance(health,dict) and health.get('backend_version')==EXPECTED and health.get('release_id')==RELEASE_ID and health.get('dedicated_tax_category_api') is True and '/tax_category_api' in api_names:break
               time.sleep(5)
-
-          out['health']=health;out['api_names']=api_names;out['last_probes']=probes
-          out['verified']=bool(isinstance(health,dict) and health.get('backend_version')==EXPECTED and health.get('release_id')==RELEASE_ID and health.get('dedicated_tax_category_api') is True and '/tax_category_api' in api_names)
+          out['health']=health;out['api_names']=api_names;out['last_probes']=probes;out['verified']=bool(isinstance(health,dict) and health.get('backend_version')==EXPECTED and health.get('release_id')==RELEASE_ID and health.get('dedicated_tax_category_api') is True and '/tax_category_api' in api_names)
           Path('tax-ai-v1/hf-space-v152.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(out,ensure_ascii=False,indent=2))
-          if not out['verified']:
-              raise RuntimeError(f'Clean Space did not verify: {health}, apis={api_names}')
+          if not out['verified']:raise RuntimeError(f'Clean Space did not verify: {health}, apis={api_names}')
           PY
       - name: Commit clean Space verification
         if: always()
