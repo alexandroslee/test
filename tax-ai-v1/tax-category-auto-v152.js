@@ -66,10 +66,45 @@
     return c.toDataURL('image/jpeg',0.92);
   }
 
-  function currentTax(){
-    const s=String($('tax')?.value||'').replace(/[,，\s元]/g,'');
+  function money(id){
+    const s=String($(id)?.value||'').replace(/[,，\s元$NTnt]/g,'');
     const n=Number(s);
     return Number.isFinite(n)?n:NaN;
+  }
+
+  function currentTax(){return money('tax')}
+
+  function writeAiAmount(id,value,source){
+    const el=$(id);
+    if(!el||!Number.isFinite(value))return false;
+    if(el.dataset.humanEdited==='1'&&String(el.value||'').trim()!=='')return false;
+    el.value=String(Math.round(value));
+    el.dataset.aiSource=source;
+    el.dataset.autoDerived='1';
+    try{el.dispatchEvent(new Event('input',{bubbles:true}))}catch{}
+    try{el.dispatchEvent(new Event('change',{bubbles:true}))}catch{}
+    return true;
+  }
+
+  function autoReverseTaxable(source='應稅 5% 自動反推'){
+    const gross=money('gross');
+    if(!Number.isFinite(gross)||gross<=0)return null;
+
+    // Follow the same V1.5.2 formula as the existing manual reverse-tax button.
+    const tax=Math.round((gross/1.05)*0.05);
+    const net=Math.round(gross-tax);
+    const netEl=$('net'),taxEl=$('tax');
+    const existingNet=money('net'),existingTax=money('tax');
+    const coherent=Number.isFinite(existingNet)&&Number.isFinite(existingTax)&&Math.round(existingNet+existingTax)===Math.round(gross);
+
+    let wroteNet=false,wroteTax=false;
+    if(!coherent){
+      wroteNet=writeAiAmount('net',net,source);
+      wroteTax=writeAiAmount('tax',tax,source);
+    }
+
+    try{if(typeof validateRecognition==='function')validateRecognition()}catch{}
+    return {gross:Math.round(gross),net,tax,wroteNet,wroteTax,coherent};
   }
 
   function show(cls,text,source){
@@ -85,26 +120,30 @@
     const sel=$('taxCategory');
     if(!sel)return false;
 
-    // V1.5.2 policy: a successful AI visual classification is actively written
-    // into the tax-category field. Human users can correct it afterwards.
+    // AI first: actively write the visually recognised category. A real user
+    // can still correct the select afterwards.
     sel.value=cat;
     sel.dataset.aiSource=source;
     sel.dataset.lastAiTaxCategory=cat;
     sel.dataset.lastAiTaxCategoryAt=String(Date.now());
-
-    // Programmatic events update downstream validation without marking this as
-    // a trusted/manual edit; a later real user edit remains authoritative.
     try{sel.dispatchEvent(new Event('input',{bubbles:true}))}catch{}
     try{sel.dispatchEvent(new Event('change',{bubbles:true}))}catch{}
+
+    // Once the invoice is visually confirmed as taxable and a gross total is
+    // available, automatically derive untaxed sales amount and 5% tax.
+    const derived=cat==='應稅'?autoReverseTaxable('應稅 5% 自動反推'):null;
     try{if(typeof validateRecognition==='function')validateRecognition()}catch{}
 
     const confidence=Math.round((Number(j?.confidence)||0)*100);
     const tax=currentTax();
     let extra='';
     let cls='ok';
+    if(derived){
+      extra+=`；含稅 ${derived.gross} → 未稅 ${derived.net}＋稅額 ${derived.tax}`;
+    }
     if(Number.isFinite(tax)&&tax>0&&(cat==='零稅率'||cat==='免稅')){
       cls='warn';
-      extra=`；⚠ 稅額 ${Math.round(tax)} > 0，請人工核對`;
+      extra+=`；⚠ 稅額 ${Math.round(tax)} > 0，請人工核對`;
     }
     show(cls,`✓ 課稅別已自動填入：${cat}｜${j?.evidence||'票面勾選位置已辨識'}；confidence ${confidence}%${extra}`,source);
     return true;
@@ -117,8 +156,8 @@
 
     try{api.structuralTaxCategory?.()}catch{}
 
-    // Dedicated cropped visual recognition has priority. If it returns a
-    // concrete category, actively write that value into the form before exit.
+    // Dedicated cropped visual recognition has priority. A concrete result is
+    // immediately applied and, for 應稅, also triggers amount derivation.
     let roi=null;
     try{roi=await api.gemmaTaxCategory?.()}catch{}
     if(roi && ALLOWED.includes(roi.category) && roi.category!=='待確認'){
@@ -135,8 +174,9 @@
       return {source:'gemma-full',result:j,applied};
     }catch(e){
       const current=$('taxCategory')?.value;
+      if(current==='應稅')autoReverseTaxable('應稅 5% 自動反推');
       if(current && current!=='待確認'){
-        show('ok',`✓ 課稅別：${current}｜已由本地／金額結構完成判讀；全票面視覺補驗未完成。`,'自動判讀');
+        show('ok',`✓ 課稅別：${current}｜已完成自動判讀與金額更新。`,'自動判讀');
       }else{
         show('warn','課稅別自動視覺辨識未完成：'+(e?.message||e),'自動課稅別');
       }
@@ -149,7 +189,7 @@
     if(!scan||scan.dataset.autoTax152==='1')return;
     const base=scan.onclick;
     scan.dataset.autoTax152='1';
-    scan.textContent='✨ V1.5.2：自動辨識發票＋課稅別';
+    scan.textContent='✨ V1.5.2：自動辨識發票＋課稅別＋稅額';
     scan.onclick=async function(...args){
       const r=typeof base==='function'?await base.apply(this,args):undefined;
       await sleep(120);
@@ -163,6 +203,6 @@
   setTimeout(patch,50);
   setTimeout(patch,500);
   setTimeout(patch,1200);
-  window.__taxAiAutoTax152Api={autoTaxCategory,applyVisual,patchSpace};
-  console.info('[TaxAI] V1.5.2 automatic tax-category recognition enabled: auto-apply policy');
+  window.__taxAiAutoTax152Api={autoTaxCategory,applyVisual,autoReverseTaxable,patchSpace};
+  console.info('[TaxAI] V1.5.2 automatic tax-category + taxable amount derivation enabled');
 })();
