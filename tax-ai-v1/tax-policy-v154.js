@@ -50,8 +50,8 @@
       }
     }else if(cat==='零稅率'||cat==='免稅'){
       if(!humanEdited('tax')&&(!Number.isFinite(tax)||Math.round(tax)!==0)){writeAi('tax',0,source);changes.push('tax');tax=0}
-      if(Number.isFinite(gross)&&gross>=0&&!Number.isFinite(net)&&!humanEdited('net')){writeAi('net',gross,source);changes.push('net');net=gross}
-      if(Number.isFinite(net)&&net>=0&&!Number.isFinite(gross)&&!humanEdited('gross')){writeAi('gross',net,source);changes.push('gross');gross=net}
+      if(Number.isFinite(gross)&&gross>=0&&!humanEdited('net')&&(!Number.isFinite(net)||Math.round(net)!==Math.round(gross))){writeAi('net',gross,source);changes.push('net');net=gross}
+      if(Number.isFinite(net)&&net>=0&&!humanEdited('gross')&&!Number.isFinite(gross)){writeAi('gross',net,source);changes.push('gross');gross=net}
     }
     try{if(typeof validateRecognition==='function')validateRecognition()}catch{}
     try{if(typeof renderSourceDetail==='function')renderSourceDetail()}catch{}
