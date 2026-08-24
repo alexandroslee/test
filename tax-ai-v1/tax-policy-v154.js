@@ -44,6 +44,9 @@
         const calcTax=Math.round(net*.05),calcGross=Math.round(net+calcTax);
         if(!humanEdited('tax')&&(!Number.isFinite(tax)||Math.round(tax)!==calcTax)){writeAi('tax',calcTax,source);changes.push('tax');tax=calcTax}
         if(!humanEdited('gross')&&(!Number.isFinite(gross)||Math.round(gross)!==calcGross)){writeAi('gross',calcGross,source);changes.push('gross');gross=calcGross}
+      }else if(Number.isFinite(gross)&&Number.isFinite(tax)&&gross>=tax){
+        const calcNet=Math.round(gross-tax);
+        if(!humanEdited('net')&&(!Number.isFinite(net)||Math.round(net)!==calcNet)){writeAi('net',calcNet,source);changes.push('net');net=calcNet}
       }
     }else if(cat==='零稅率'||cat==='免稅'){
       if(!humanEdited('tax')&&(!Number.isFinite(tax)||Math.round(tax)!==0)){writeAi('tax',0,source);changes.push('tax');tax=0}
@@ -109,6 +112,11 @@
     return null;
   }
   async function finalise(){
+    const manualCat=$('taxCategory')?.value||'';
+    if(humanEdited('taxCategory')&&CONCRETE.includes(manualCat)){
+      const amounts=deriveAmounts(manualCat);annotate(manualCat,100,'人工修改','使用者手動修改課稅別',amounts,{human:true});
+      return {category:manualCat,confidence:100,source:'人工修改',amounts,human:true};
+    }
     let decision=null;
     try{const r=await window.__taxAiTaxVisionFallback152Api?.rescue?.();if(CONCRETE.includes(r?.category))decision={category:r.category,confidence:(Number(r.confidence)||0)*100,source:'本地票面 V 幾何辨識',evidence:r.evidence||''}}catch{}
     if(!decision){try{await window.__taxAiAutoTax152Api?.autoTaxCategory?.()}catch{}decision=inferFromCurrent()}
