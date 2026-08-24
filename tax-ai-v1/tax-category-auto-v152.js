@@ -84,19 +84,29 @@
     if(cat==='待確認')return false;
     const sel=$('taxCategory');
     if(!sel)return false;
-    const tax=currentTax();
-    if(Number.isFinite(tax)&&tax>0&&(cat==='零稅率'||cat==='免稅')){
-      show('warn',`票面視覺判「${cat}」，但稅額 ${Math.round(tax)} > 0；保留應稅／要求人工核對。`,'來源衝突');
-      return false;
-    }
-    if(sel.dataset.humanEdited==='1'&&sel.value!==cat){
-      show('warn',`自動辨識「${cat}」與人工「${sel.value}」不同；保留人工值。`,'人工確認');
-      return false;
-    }
+
+    // V1.5.2 policy: a successful AI visual classification is actively written
+    // into the tax-category field. Human users can correct it afterwards.
     sel.value=cat;
     sel.dataset.aiSource=source;
+    sel.dataset.lastAiTaxCategory=cat;
+    sel.dataset.lastAiTaxCategoryAt=String(Date.now());
+
+    // Programmatic events update downstream validation without marking this as
+    // a trusted/manual edit; a later real user edit remains authoritative.
+    try{sel.dispatchEvent(new Event('input',{bubbles:true}))}catch{}
+    try{sel.dispatchEvent(new Event('change',{bubbles:true}))}catch{}
+    try{if(typeof validateRecognition==='function')validateRecognition()}catch{}
+
     const confidence=Math.round((Number(j?.confidence)||0)*100);
-    show('ok',`✓ 課稅別：${cat}｜${j?.evidence||'票面勾選位置已辨識'}；confidence ${confidence}%`,source);
+    const tax=currentTax();
+    let extra='';
+    let cls='ok';
+    if(Number.isFinite(tax)&&tax>0&&(cat==='零稅率'||cat==='免稅')){
+      cls='warn';
+      extra=`；⚠ 稅額 ${Math.round(tax)} > 0，請人工核對`;
+    }
+    show(cls,`✓ 課稅別已自動填入：${cat}｜${j?.evidence||'票面勾選位置已辨識'}；confidence ${confidence}%${extra}`,source);
     return true;
   }
 
@@ -107,17 +117,22 @@
 
     try{api.structuralTaxCategory?.()}catch{}
 
+    // Dedicated cropped visual recognition has priority. If it returns a
+    // concrete category, actively write that value into the form before exit.
     let roi=null;
     try{roi=await api.gemmaTaxCategory?.()}catch{}
-    if(roi && ALLOWED.includes(roi.category) && roi.category!=='待確認') return {source:'gemma-roi',result:roi};
+    if(roi && ALLOWED.includes(roi.category) && roi.category!=='待確認'){
+      applyVisual(roi,'Gemma 課稅別專用裁切');
+      return {source:'gemma-roi',result:roi,applied:true};
+    }
 
     const full=fullPreviewDataUrl();
     if(!full)return null;
     show('info','正在自動定位票面「應稅／零稅率／免稅」勾選位置…','Gemma 全票面課稅別');
     try{
       const j=await callTaxApi(full);
-      applyVisual(j,'Gemma 全票面自動勾選');
-      return {source:'gemma-full',result:j};
+      const applied=applyVisual(j,'Gemma 全票面自動勾選');
+      return {source:'gemma-full',result:j,applied};
     }catch(e){
       const current=$('taxCategory')?.value;
       if(current && current!=='待確認'){
@@ -149,5 +164,5 @@
   setTimeout(patch,500);
   setTimeout(patch,1200);
   window.__taxAiAutoTax152Api={autoTaxCategory,applyVisual,patchSpace};
-  console.info('[TaxAI] V1.5.2 automatic tax-category recognition enabled');
+  console.info('[TaxAI] V1.5.2 automatic tax-category recognition enabled: auto-apply policy');
 })();
