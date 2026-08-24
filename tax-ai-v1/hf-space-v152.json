@@ -1,0 +1,324 @@
+{
+  "repo_id": "AlexandrosLee/tax-ai-zerogpu-v152",
+  "space_url": "https://alexandroslee-tax-ai-zerogpu-v152.hf.space",
+  "repo_url": "https://huggingface.co/spaces/AlexandrosLee/tax-ai-zerogpu-v152",
+  "commit": "https://huggingface.co/spaces/AlexandrosLee/tax-ai-zerogpu-v152/commit/2a30cd4a8d92557b70a5bbbfe7a6dcadc46b6a26",
+  "expected_backend_version": "1.5.2",
+  "expected_release_id": "tax-ai-1.5.2-20260822-1555",
+  "started_at_unix": 1787534245,
+  "health": {
+    "status": "ok",
+    "backend": "huggingface-zerogpu",
+    "backend_version": "1.5.2",
+    "release_id": "tax-ai-1.5.2-20260822-1555",
+    "model": "google/gemma-4-E4B-it",
+    "gpu_mode": "ZeroGPU",
+    "visual_token_budget": 1120,
+    "tax_category_supported": true,
+    "dedicated_tax_category_api": true,
+    "tax_category_values": [
+      "應稅",
+      "零稅率",
+      "免稅",
+      "待確認"
+    ],
+    "checksum_used": false
+  },
+  "api_names": [
+    "/ui_invoice",
+    "/ui_tax_category",
+    "/ui_buyer",
+    "/invoice_api",
+    "/tax_category_api",
+    "/buyer_ban_api",
+    "/health_api"
+  ],
+  "last_probes": [
+    {
+      "attempt": 7,
+      "unix": 1787534281,
+      "stage": "RUNNING_BUILDING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 8,
+      "unix": 1787534287,
+      "stage": "RUNNING_BUILDING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 9,
+      "unix": 1787534292,
+      "stage": "RUNNING_BUILDING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 10,
+      "unix": 1787534298,
+      "stage": "RUNNING_BUILDING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 11,
+      "unix": 1787534304,
+      "stage": "RUNNING_BUILDING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 12,
+      "unix": 1787534310,
+      "stage": "RUNNING_APP_STARTING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 13,
+      "unix": 1787534316,
+      "stage": "RUNNING_APP_STARTING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 14,
+      "unix": 1787534322,
+      "stage": "RUNNING_APP_STARTING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 15,
+      "unix": 1787534328,
+      "stage": "RUNNING_APP_STARTING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 16,
+      "unix": 1787534334,
+      "stage": "RUNNING_APP_STARTING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 17,
+      "unix": 1787534340,
+      "stage": "RUNNING_APP_STARTING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 18,
+      "unix": 1787534345,
+      "stage": "RUNNING_APP_STARTING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 19,
+      "unix": 1787534351,
+      "stage": "RUNNING_APP_STARTING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": null,
+      "release_id": null
+    },
+    {
+      "attempt": 20,
+      "unix": 1787534357,
+      "stage": "RUNNING_APP_STARTING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_buyer",
+        "/invoice_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_error": "ChunkedEncodingError(ProtocolError(\"Connection broken: InvalidChunkLength(got length b'', 0 bytes read)\", InvalidChunkLength(got length b'', 0 bytes read)))"
+    },
+    {
+      "attempt": 21,
+      "unix": 1787534363,
+      "stage": "RUNNING",
+      "hardware": "zero-a10g",
+      "requested_hardware": "zero-a10g",
+      "info_http": 200,
+      "api_names": [
+        "/ui_invoice",
+        "/ui_tax_category",
+        "/ui_buyer",
+        "/invoice_api",
+        "/tax_category_api",
+        "/buyer_ban_api",
+        "/health_api"
+      ],
+      "health_submit_http": 200,
+      "health_result_http": 200,
+      "backend_version": "1.5.2",
+      "release_id": "tax-ai-1.5.2-20260822-1555"
+    }
+  ],
+  "verified": true
+}
