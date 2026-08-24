@@ -1,18 +1,18 @@
 ---
-title: Tax AI ZeroGPU
+title: Tax AI ZeroGPU V1.5.2
 emoji: 🧾
 colorFrom: blue
 colorTo: indigo
 sdk: gradio
 sdk_version: 5.49.1
-app_file: app_v150.py
+app_file: app.py
 pinned: false
 license: mit
 python_version: 3.12
 hardware: zero-a10g
 ---
 
-# Tax AI ZeroGPU — Gemma 4 E4B V1.5.0
+# Tax AI ZeroGPU — Gemma 4 E4B V1.5.2
 
 Taiwan invoice Vision backend for the AI 超簡易營業稅申報系統。
 
@@ -20,19 +20,26 @@ Taiwan invoice Vision backend for the AI 超簡易營業稅申報系統。
 
 GitHub Pages → Hugging Face ZeroGPU Space → Gemma 4 E4B
 
+Release contract:
+
+- Backend version: `1.5.2`
+- Release ID: `tax-ai-1.5.2-20260822-1555`
+- Space: `AlexandrosLee/tax-ai-zerogpu-v152`
+
 The Space exposes Gradio API endpoints:
 
 - `/invoice_api`: full invoice extraction, including tax category
+- `/tax_category_api`: dedicated cropped tax-category recognition
 - `/buyer_ban_api`: cropped eight-cell buyer tax-ID recognition
-- `/health_api`: CPU-only health/status
+- `/health_api`: CPU-only health/status and release-contract verification
 
-## V1.5.0 tax category
+## V1.5.2 tax category
 
 The invoice result includes:
 
 - `tax_category`: `應稅 | 零稅率 | 免稅 | 待確認`
-- `tax_category_source`: `票面勾選 | 票面文字 | 金額交叉驗證 | 待確認`
-- `tax_category_evidence`: short evidence string
+- `tax_category_source`: visual source information
+- `tax_category_evidence`: short visual evidence string
 
 Visual marks such as `V`, `✓`, `√`, a check mark or dot aligned with the printed labels `應稅 / 零稅率 / 免稅` take priority. Amount arithmetic is only a secondary cross-check and must not pretend to be a visual checkbox read.
 
@@ -47,6 +54,6 @@ Visual marks such as `V`, `✓`, `√`, a check mark or dot aligned with the pri
 ## Runtime
 
 - ZeroGPU flavor: `zero-a10g`.
-- PyTorch is pinned to a ZeroGPU-supported release.
 - `spaces` is imported before `torch`, so ZeroGPU CUDA emulation initializes correctly.
+- Runtime entrypoint is `app.py` (V1.5.2), not the legacy `app_v150.py`.
 - Gemma 4 E4B is public Apache-2.0 on Hugging Face; `HF_TOKEN` is not required for model download at this time.
