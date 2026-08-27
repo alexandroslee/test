@@ -1,7 +1,7 @@
 (function(){
   if(window.__taxAiTaxStable158)return;
   window.__taxAiTaxStable158=true;
-  const BUILD='20260828-v158-local-tax-r1';
+  const BUILD='20260828-v158-local-tax-r2';
   const CATS=['應稅','零稅率','免稅'];
   const $=id=>document.getElementById(id);
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -19,7 +19,7 @@
   function derive(cat){
     let net=money('net'),tax=money('tax'),gross=money('gross');
     if(cat==='應稅'){
-      if(Number.isFinite(gross)&&gross>0){const t=Math.round(gross-gross/1.05),n=Math.round(gross-t);if(!Number.isFinite(net)||Math.round(net+tax)!==Math.round(gross))writeAmount('net',n,'V1.5.8 應稅 5% 反推');if(!Number.isFinite(tax)||Math.round(net+tax)!==Math.round(gross))writeAmount('tax',t,'V1.5.8 應稅 5% 反推')}
+      if(Number.isFinite(gross)&&gross>0){const t=Math.round(gross-gross/1.05),n=Math.round(gross-t);const coherent=Number.isFinite(net)&&Number.isFinite(tax)&&Math.round(net+tax)===Math.round(gross);if(!coherent){writeAmount('net',n,'V1.5.8 應稅 5% 反推');writeAmount('tax',t,'V1.5.8 應稅 5% 反推')}}
       else if(Number.isFinite(net)&&net>=0){const t=Math.round(net*.05);writeAmount('tax',t,'V1.5.8 應稅 5% 計算');writeAmount('gross',net+t,'V1.5.8 應稅 5% 計算')}
     }else if(cat==='零稅率'||cat==='免稅'){
       writeAmount('tax',0,'V1.5.8 非應稅稅額');
@@ -43,8 +43,23 @@
   async function runLocalTax(){
     const api=window.__taxAiCore152Api;if(!api)return null;
     const current=$('taxCategory')?.value||'';if(CATS.includes(current))return {category:current,source:'existing'};
+
+    // 1. 金額結構：有實際稅額且金額關係成立時，直接確認應稅。
     try{const structural=api.structuralTaxCategory?.();if(CATS.includes(structural)){setCategory(structural,'V1.5.8 金額結構','稅額／總額結構確認',100);return {category:structural,source:'structural'}}}catch{}
-    try{const local=await api.localTaxCategory?.();if(CATS.includes(local?.cat)){setCategory(local.cat,'V1.5.8 本地票面 V',String(local.text||'').trim().slice(0,120),95);return {category:local.cat,source:'local-roi',local}}}catch{}
+
+    // 2. 本地幾何視覺：不依賴 OCR 是否把 V 認成文字，適合三聯式手開發票。
+    try{
+      const v=await window.__taxAiTaxVisionFallback152Api?.rescue?.();
+      if(CATS.includes(v?.category)){
+        const conf=Math.max(70,Math.min(100,Math.round((Number(v.confidence)||.9)*100)));
+        setCategory(v.category,'V1.5.8 本地票面 V 幾何辨識',v.evidence||'課稅別勾選位置',conf);
+        return {category:v.category,source:'local-vision',vision:v};
+      }
+    }catch{}
+
+    // 3. 本地 ROI OCR：快速補充文字證據，不呼叫 ZeroGPU。
+    try{const local=await api.localTaxCategory?.();if(CATS.includes(local?.cat)){setCategory(local.cat,'V1.5.8 本地 ROI OCR',String(local.text||'').trim().slice(0,120),95);return {category:local.cat,source:'local-roi',local}}}catch{}
+
     const p=$('taxCategoryEvidence'),b=$('taxCategoryEvidenceBody');if(p)p.className='warn';if(b)b.textContent='⚠ V1.5.8 本地課稅別尚未確定；主流程不等待 Gemma。需要時可按「Gemma 課稅別補驗（選用）」。';
     return {category:'待確認',source:'unresolved'};
   }
