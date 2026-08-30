@@ -1,0 +1,49 @@
+name: Test Tax AI V1.5.9 Nemotron Parse GPU
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/test-tax-ai-nemotron-v159.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+      - name: Install Gradio client
+        run: python -m pip install --upgrade gradio_client
+      - name: Call live Nemotron Parse API with existing test image
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from gradio_client import Client, handle_file
+
+          SPACE='https://alexandroslee-tax-ai-zerogpu-v152.hf.space'
+          MODEL='nvidia/NVIDIA-Nemotron-Parse-2.0'
+          img='tax-ai-v1/tax-category-v150-test.png'
+          assert Path(img).exists(), img
+
+          try:
+              client=Client(SPACE, hf_token=os.environ.get('HF_TOKEN'), verbose=False)
+          except TypeError:
+              client=Client(SPACE, verbose=False)
+
+          result=client.predict(handle_file(img), api_name='/parse_api')
+          if isinstance(result, str):
+              try: result=json.loads(result)
+              except Exception: pass
+          print(json.dumps(result, ensure_ascii=False, indent=2) if isinstance(result, (dict,list)) else repr(result))
+          assert isinstance(result, dict), type(result)
+          assert result.get('backend_version')=='1.5.9', result.get('backend_version')
+          assert result.get('model')==MODEL, result.get('model')
+          assert int(result.get('block_count') or 0) > 0, result.get('block_count')
+          assert isinstance(result.get('blocks'), list) and result['blocks'], 'no blocks'
+          print('NEMOTRON_V159_GPU_SMOKE_PASS', result['block_count'])
+          PY
