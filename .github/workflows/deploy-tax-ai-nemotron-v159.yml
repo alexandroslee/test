@@ -7,9 +7,6 @@ on:
     paths:
       - '.github/workflows/deploy-tax-ai-nemotron-v159.yml'
 
-permissions:
-  contents: write
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -17,33 +14,28 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: gh-pages
-          fetch-depth: 0
       - run: python -m pip install --upgrade 'huggingface_hub>=1.5.0' requests
-      - name: Replace existing ZeroGPU slot with V1.5.9 Nemotron Parse
+      - name: Replace existing ZeroGPU slot with V1.5.9 Nemotron Parse r3
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python - <<'PY'
           import json, os, time, requests
-          from pathlib import Path
           from huggingface_hub import HfApi
           EXPECTED='1.5.9'
-          RELEASE_ID='tax-ai-1.5.9-nemotron-parse-20260830-r2'
+          RELEASE_ID='tax-ai-1.5.9-nemotron-parse-20260830-r3'
           MODEL='nvidia/NVIDIA-Nemotron-Parse-2.0'
-          # Free HF account already has two ZeroGPU Spaces. Reuse the verified V1.5.2 slot.
           repo_id='AlexandrosLee/tax-ai-zerogpu-v152'
           base='https://alexandroslee-tax-ai-zerogpu-v152.hf.space'
           token=os.environ['HF_TOKEN']; headers={'Authorization':'Bearer '+token}; api=HfApi(token=token)
-          # The Space already exists with zero-a10g. Uploading preserves the ZeroGPU slot and allows rollback.
           commit=api.upload_folder(folder_path='hf-space-tax-ai-v159',repo_id=repo_id,repo_type='space',commit_message=f'V{EXPECTED} Nemotron Parse 2.0: {RELEASE_ID}')
           try: api.restart_space(repo_id=repo_id)
           except Exception: pass
-          out={'repo_id':repo_id,'space_url':base,'repo_url':'https://huggingface.co/spaces/'+repo_id,'commit':str(commit),'expected_backend_version':EXPECTED,'expected_release_id':RELEASE_ID,'model':MODEL,'reused_zero_gpu_slot':True,'started_at_unix':int(time.time())}
           health=None;api_names=[];probes=[]
           for attempt in range(180):
               p={'attempt':attempt+1,'unix':int(time.time())}
               try:
-                  rt=api.get_space_runtime(repo_id=repo_id);p['stage']=str(rt.stage);p['hardware']=str(rt.hardware) if rt.hardware else None;p['requested_hardware']=str(rt.requested_hardware) if rt.requested_hardware else None
+                  rt=api.get_space_runtime(repo_id=repo_id);p['stage']=str(rt.stage);p['hardware']=str(rt.hardware) if rt.hardware else None
               except Exception as e:p['runtime_error']=repr(e)
               try:
                   r=requests.get(base+'/gradio_api/info',headers=headers,timeout=30);p['info_http']=r.status_code
@@ -65,24 +57,11 @@ jobs:
                           if isinstance(last,dict):p['backend_version']=last.get('backend_version');p['release_id']=last.get('release_id');p['model']=last.get('model')
               except Exception as e:p['health_error']=repr(e)
               probes.append(p)
-              if len(probes)>20:probes=probes[-20:]
-              ok=isinstance(health,dict) and health.get('backend_version')==EXPECTED and health.get('release_id')==RELEASE_ID and health.get('model')==MODEL and '/invoice_api' in api_names and '/parse_api' in api_names
-              if ok:break
+              if len(probes)>12:probes=probes[-12:]
+              if isinstance(health,dict) and health.get('backend_version')==EXPECTED and health.get('release_id')==RELEASE_ID and health.get('model')==MODEL and '/invoice_api' in api_names and '/parse_api' in api_names:break
               time.sleep(6)
-          out['health']=health;out['api_names']=api_names;out['last_probes']=probes;out['verified']=bool(isinstance(health,dict) and health.get('backend_version')==EXPECTED and health.get('release_id')==RELEASE_ID and health.get('model')==MODEL and '/invoice_api' in api_names and '/parse_api' in api_names)
-          Path('tax-ai-v1/hf-space-v159.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          verified=bool(isinstance(health,dict) and health.get('backend_version')==EXPECTED and health.get('release_id')==RELEASE_ID and health.get('model')==MODEL and '/invoice_api' in api_names and '/parse_api' in api_names)
+          out={'repo_id':repo_id,'space_url':base,'space_commit':str(commit),'health':health,'api_names':api_names,'verified':verified,'last_probes':probes}
           print(json.dumps(out,ensure_ascii=False,indent=2))
-          if not out['verified']:raise RuntimeError(f'Nemotron Space did not verify: {health}, apis={api_names}')
+          if not verified:raise RuntimeError(f'Nemotron Space r3 did not verify: {health}, apis={api_names}')
           PY
-      - name: Commit V1.5.9 Space verification
-        if: always()
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          if [ -f tax-ai-v1/hf-space-v159.json ]; then
-            git add tax-ai-v1/hf-space-v159.json
-            if ! git diff --cached --quiet; then
-              git commit -m 'Record Nemotron Parse V1.5.9 ZeroGPU verification'
-              git push origin HEAD:gh-pages
-            fi
-          fi
