@@ -10,7 +10,7 @@ from huggingface_hub import snapshot_download
 from transformers import AutoModel, AutoProcessor, AutoTokenizer, GenerationConfig
 
 BACKEND_VERSION="1.5.9"
-RELEASE_ID="tax-ai-1.5.9-nemotron-parse-20260830-r2"
+RELEASE_ID="tax-ai-1.5.9-nemotron-parse-20260830-r3"
 MODEL_ID="nvidia/NVIDIA-Nemotron-Parse-2.0"
 HF_TOKEN=os.getenv("HF_TOKEN") or None
 TASK_PROMPT="</s><s><predict_bbox><predict_classes><output_markdown><predict_no_text_in_pic>"
@@ -32,6 +32,14 @@ def _decode(v:Any)->Image.Image:
     if isinstance(v,str) and os.path.exists(v):return Image.open(v).convert("RGB")
     raise ValueError("無法讀取影像")
 def _clean(v):return re.sub(r"\s+"," ",str(v or "")).strip()
+def _tw_tax_text(v):
+    """Normalize common CJK glyph variants produced by document OCR.
+
+    Nemotron may legitimately output Japanese/simplified `税/应` when reading
+    Taiwanese forms. Normalize only the tax-label characters; do not modify
+    numbers or other observed text.
+    """
+    return str(v or "").replace("应","應").replace("税","稅")
 def _digits(v):return re.sub(r"\D","",str(v or ""))
 def _valid_ban(v):
     b=_digits(v)
@@ -98,13 +106,13 @@ def _labeled(full,aliases):
         if m:return _money(m.group(1))
     return None
 def _amounts(blocks):
-    full="\n".join(b["text"] for b in blocks);sales=_labeled(full,["銷售額","未稅金額","未稅","銷售金額"]);tax=_labeled(full,["營業稅額","營業稅","稅額"]);total=_labeled(full,["總計","總額","含稅總額","合計"])
+    full=_tw_tax_text("\n".join(b["text"] for b in blocks));sales=_labeled(full,["銷售額","未稅金額","未稅","銷售金額"]);tax=_labeled(full,["營業稅額","營業稅","稅額"]);total=_labeled(full,["總計","總額","含稅總額","合計"])
     coherent=sales is not None and tax is not None and total is not None and sales+tax==total;tax5=coherent and sales>0 and abs(tax-round(sales*.05))<=max(2,round(sales*.002))
     return {"sales_amount":sales,"tax_amount":tax,"total_amount":total,"coherent":coherent,"tax_5pct":tax5}
 def _taxcat(blocks,a):
     marks=[];labels=[]
     for b in blocks:
-        t=b["text"]
+        t=_tw_tax_text(b["text"])
         for cat in ["應稅","零稅率","免稅"]:
             if cat in t:
                 labels.append((cat,b))
@@ -136,8 +144,8 @@ def invoice_api(image_value):
     started=time.time();image=_decode(image_value);p=_parse_document(image);d,c,e=_invoice_from_parsed(p);warnings=[]
     if d["buyer_tax_id"] and d["buyer_tax_id"]==d["seller_tax_id"]:warnings.append("buyer/seller role conflict")
     if all(e["amounts"][k] is not None for k in ["sales_amount","tax_amount","total_amount"]) and not e["amounts"]["coherent"]:warnings.append("金額不符合：銷售額＋稅額＝總計")
-    return {"backend_version":BACKEND_VERSION,"release_id":RELEASE_ID,"model":MODEL_ID,"count":1,"results":[{"data":d,"confidence":c,"source":"nvidia-nemotron-parse-2.0-spatial-v159-r2","warnings":warnings,"evidence":e,"blocks":p["blocks"],"raw_text":p["raw_text"],"elapsed_ms":int((time.time()-started)*1000)}]}
-def health_api():return {"status":"ok","backend_version":BACKEND_VERSION,"release_id":RELEASE_ID,"model":MODEL_ID,"architecture":"document-parse -> spatial-rules -> validation","task_prompt":TASK_PROMPT,"gpu_mode":"ZeroGPU","nested_gpu_calls":False}
+    return {"backend_version":BACKEND_VERSION,"release_id":RELEASE_ID,"model":MODEL_ID,"count":1,"results":[{"data":d,"confidence":c,"source":"nvidia-nemotron-parse-2.0-spatial-v159-r3","warnings":warnings,"evidence":e,"blocks":p["blocks"],"raw_text":p["raw_text"],"elapsed_ms":int((time.time()-started)*1000)}]}
+def health_api():return {"status":"ok","backend_version":BACKEND_VERSION,"release_id":RELEASE_ID,"model":MODEL_ID,"architecture":"document-parse -> spatial-rules -> validation","task_prompt":TASK_PROMPT,"gpu_mode":"ZeroGPU","nested_gpu_calls":False,"tax_label_normalization":"应→應, 税→稅"}
 
 with gr.Blocks(title="Tax AI V1.5.9 — NVIDIA Nemotron Parse 2.0") as demo:
     gr.Markdown("# 🧾 Tax AI V1.5.9 — NVIDIA Nemotron Parse 2.0\n主模型先解析文字＋版面＋座標，再由 Tax AI 空間規則決定欄位角色。")
