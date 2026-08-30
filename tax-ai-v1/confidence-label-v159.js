@@ -1,0 +1,1 @@
+(function(){if(window.__taxAiConfidenceLabel159)return;window.__taxAiConfidenceLabel159=true;function fix(){for(const id of ['v154ScoreBreakdown','ocrConfidence']){const e=document.getElementById(id);if(e){e.textContent=e.textContent.replace(/V1\.5\.4/g,'V1.5.9');if(e.title)e.title=e.title.replace(/V1\.5\.4/g,'V1.5.9')}}}fix();setTimeout(fix,200);setInterval(fix,1000);})();
