@@ -24,8 +24,8 @@ Taiwan invoice document-intelligence backend for AI 超簡易營業稅申報系�
 Release contract:
 
 - Backend version: `1.5.9`
-- Release ID: `tax-ai-1.5.9-nemotron-parse-20260830-r2`
-- Target Space: `AlexandrosLee/tax-ai-nemotron-v159`
+- Release ID: `tax-ai-1.5.9-nemotron-parse-20260830-r3`
+- Runtime Space slot: `AlexandrosLee/tax-ai-zerogpu-v152` (existing Free-tier ZeroGPU slot reused)
 - Runtime: `app_v159.py`
 
 ## API
@@ -35,6 +35,15 @@ Release contract:
 - `/health_api`: CPU-only backend/model/release status
 
 `invoice_api` does not call another `@spaces.GPU` function. Parse + spatial reconciliation are completed inside the same allocated GPU job to avoid nested ZeroGPU queue/lease problems.
+
+## Taiwan text normalization
+
+Document OCR can legitimately emit compatible CJK glyph variants such as `應税√`, `应税`, `零税率`, or `免税`. V1.5.9 r3 normalizes only tax-label glyphs before rule evaluation:
+
+- `应` → `應`
+- `税` → `稅`
+
+Observed numbers and tax IDs are never repaired or invented by this normalization.
 
 ## Design rules
 
@@ -54,4 +63,4 @@ The model repository's postprocessing helpers recover semantic classes, text blo
 
 ## Deployment
 
-Copy this folder into a Hugging Face Gradio Space configured with ZeroGPU (`zero-a10g`). Keep `spaces` imported before `torch`.
+This source is deployed into the existing ZeroGPU Space `AlexandrosLee/tax-ai-zerogpu-v152` because the Free Hugging Face account already uses its two ZeroGPU Space slots. Keep `spaces` imported before `torch`.
