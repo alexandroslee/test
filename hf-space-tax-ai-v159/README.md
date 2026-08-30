@@ -5,7 +5,7 @@ colorFrom: green
 colorTo: blue
 sdk: gradio
 sdk_version: 5.49.1
-app_file: app.py
+app_file: app_v159.py
 pinned: false
 python_version: 3.12
 hardware: zero-a10g
@@ -24,14 +24,17 @@ Taiwan invoice document-intelligence backend for AI 超簡易營業稅申報系�
 Release contract:
 
 - Backend version: `1.5.9`
-- Release ID: `tax-ai-1.5.9-nemotron-parse-20260830`
+- Release ID: `tax-ai-1.5.9-nemotron-parse-20260830-r2`
 - Target Space: `AlexandrosLee/tax-ai-nemotron-v159`
+- Runtime: `app_v159.py`
 
 ## API
 
-- `/invoice_api`: Nemotron Parse 2.0 + Taiwan invoice spatial rules
-- `/parse_api`: raw document blocks (text, semantic class, bounding boxes)
-- `/health_api`: backend/model/release status
+- `/invoice_api`: one ZeroGPU job performs Nemotron Parse 2.0 + Taiwan invoice spatial rules
+- `/parse_api`: one ZeroGPU job returns raw document blocks (text, semantic class, bounding boxes)
+- `/health_api`: CPU-only backend/model/release status
+
+`invoice_api` does not call another `@spaces.GPU` function. Parse + spatial reconciliation are completed inside the same allocated GPU job to avoid nested ZeroGPU queue/lease problems.
 
 ## Design rules
 
@@ -45,12 +48,10 @@ Release contract:
 
 ## Nemotron Parse prompt
 
-The backend uses NVIDIA's recommended structured-document prompt:
-
 `</s><s><predict_bbox><predict_classes><output_markdown><predict_no_text_in_pic>`
 
-The model repository's postprocessing helpers are used to recover semantic classes, text blocks and original-image coordinates.
+The model repository's postprocessing helpers recover semantic classes, text blocks and original-image coordinates.
 
 ## Deployment
 
-This folder is intended to be copied into a Hugging Face Gradio Space configured with ZeroGPU (`zero-a10g`). Keep `spaces` imported before `torch`.
+Copy this folder into a Hugging Face Gradio Space configured with ZeroGPU (`zero-a10g`). Keep `spaces` imported before `torch`.
