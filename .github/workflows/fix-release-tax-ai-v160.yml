@@ -1,0 +1,80 @@
+name: Fix Tax AI V1.6.0 backend contract
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/fix-release-tax-ai-v160.yml'
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+      - name: Fix backend version and V1.6 labels
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('hf-space-tax-ai-v160/app_v160.py')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('BACKEND_VERSION = "1.5.9"','BACKEND_VERSION = "1.6.0"')
+          s=s.replace('# r4: 8-grid buyer BAN reconstruction + buyer ROI second pass.','# V1.6.0 r1: 8-grid buyer BAN reconstruction + buyer ROI second pass.')
+          p.write_text(s,encoding='utf-8')
+          r=Path('hf-space-tax-ai-v160/README.md')
+          t=r.read_text(encoding='utf-8').replace('V1.6.0 r4','V1.6.0 r1').replace('V1.6.0 r3','V1.6.0 r1')
+          r.write_text(t,encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add hf-space-tax-ai-v160
+          git commit -m 'Fix Tax AI V1.6.0 backend version contract' || true
+          git push origin gh-pages
+      - name: Install clients
+        run: python -m pip install --upgrade 'huggingface_hub>=1.5.0' gradio_client
+      - name: Deploy corrected V1.6.0 and verify
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os,time,json
+          from pathlib import Path
+          from huggingface_hub import HfApi
+          from gradio_client import Client,handle_file
+          repo='AlexandrosLee/tax-ai-zerogpu-v152';space='https://alexandroslee-tax-ai-zerogpu-v152.hf.space'
+          release='tax-ai-1.6.0-nemotron-parse-20260831-r1';model='nvidia/NVIDIA-Nemotron-Parse-2.0'
+          api=HfApi(token=os.environ['HF_TOKEN'])
+          commit=api.upload_folder(folder_path='hf-space-tax-ai-v160',repo_id=repo,repo_type='space',commit_message='Fix V1.6.0 backend contract')
+          try:api.restart_space(repo_id=repo)
+          except Exception:pass
+          c=None;h=None
+          for i in range(120):
+              try:
+                  try:c=Client(space,hf_token=os.environ.get('HF_TOKEN'),verbose=False)
+                  except TypeError:c=Client(space,verbose=False)
+                  h=c.predict('health',api_name='/health_api')
+                  if isinstance(h,str):
+                      try:h=json.loads(h)
+                      except Exception:pass
+                  print('HEALTH',i+1,h)
+                  if isinstance(h,dict) and h.get('backend_version')=='1.6.0' and h.get('release_id')==release and h.get('model')==model:break
+              except Exception as e:print('WAIT',i+1,repr(e))
+              time.sleep(5)
+          assert isinstance(h,dict) and h.get('backend_version')=='1.6.0' and h.get('release_id')==release,h
+          tax=c.predict(handle_file('tax-ai-v1/tax-category-v150-test.png'),api_name='/invoice_api')
+          buyer=c.predict(handle_file('tax-ai-v1/zerogpu-test-54169882.png'),api_name='/invoice_api')
+          if isinstance(tax,str):tax=json.loads(tax)
+          if isinstance(buyer,str):buyer=json.loads(buyer)
+          td=(tax.get('results') or [{}])[0].get('data') or {}
+          bf=(buyer.get('results') or [{}])[0];bd=bf.get('data') or {};ban=((bf.get('evidence') or {}).get('ban') or {})
+          assert td.get('tax_category')=='應稅' and td.get('sales_amount')==848 and td.get('tax_amount')==42 and td.get('total_amount')==890,td
+          assert bd.get('buyer_tax_id')=='54169882',bd
+          assert any(x.get('value')=='54169882' and x.get('piece_count')==8 and x.get('valid_checksum') is True for x in (ban.get('buyer_candidates') or [])),ban
+          print('V160_FIXED_RELEASE_PASS')
+          print(json.dumps({'space_commit':str(commit),'health':h,'tax':td,'buyer':bd.get('buyer_tax_id')},ensure_ascii=False,indent=2))
+          PY
