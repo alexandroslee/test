@@ -15,7 +15,7 @@ jobs:
         with:
           ref: gh-pages
       - run: python -m pip install --upgrade 'huggingface_hub>=1.5.0' requests
-      - name: Replace existing ZeroGPU slot with V1.5.9 Nemotron Parse r3
+      - name: Replace existing ZeroGPU slot with V1.5.9 Nemotron Parse r4
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -23,7 +23,7 @@ jobs:
           import json, os, time, requests
           from huggingface_hub import HfApi
           EXPECTED='1.5.9'
-          RELEASE_ID='tax-ai-1.5.9-nemotron-parse-20260830-r3'
+          RELEASE_ID='tax-ai-1.5.9-nemotron-parse-20260831-r4'
           MODEL='nvidia/NVIDIA-Nemotron-Parse-2.0'
           repo_id='AlexandrosLee/tax-ai-zerogpu-v152'
           base='https://alexandroslee-tax-ai-zerogpu-v152.hf.space'
@@ -31,37 +31,37 @@ jobs:
           commit=api.upload_folder(folder_path='hf-space-tax-ai-v159',repo_id=repo_id,repo_type='space',commit_message=f'V{EXPECTED} Nemotron Parse 2.0: {RELEASE_ID}')
           try: api.restart_space(repo_id=repo_id)
           except Exception: pass
-          health=None;api_names=[];probes=[]
+          health=None; api_names=[]; probes=[]
           for attempt in range(180):
               p={'attempt':attempt+1,'unix':int(time.time())}
               try:
-                  rt=api.get_space_runtime(repo_id=repo_id);p['stage']=str(rt.stage);p['hardware']=str(rt.hardware) if rt.hardware else None
-              except Exception as e:p['runtime_error']=repr(e)
+                  rt=api.get_space_runtime(repo_id=repo_id); p['stage']=str(rt.stage); p['hardware']=str(rt.hardware) if rt.hardware else None
+              except Exception as e: p['runtime_error']=repr(e)
               try:
-                  r=requests.get(base+'/gradio_api/info',headers=headers,timeout=30);p['info_http']=r.status_code
-                  if r.ok:api_names=list((r.json().get('named_endpoints') or {}).keys());p['api_names']=api_names
-              except Exception as e:p['info_error']=repr(e)
+                  r=requests.get(base+'/gradio_api/info',headers=headers,timeout=30); p['info_http']=r.status_code
+                  if r.ok: api_names=list((r.json().get('named_endpoints') or {}).keys()); p['api_names']=api_names
+              except Exception as e: p['info_error']=repr(e)
               try:
-                  s=requests.post(base+'/gradio_api/call/health_api',headers={**headers,'Content-Type':'application/json'},json={'data':['health']},timeout=30);p['health_submit_http']=s.status_code
+                  s=requests.post(base+'/gradio_api/call/health_api',headers={**headers,'Content-Type':'application/json'},json={'data':['health']},timeout=30); p['health_submit_http']=s.status_code
                   if s.ok and s.json().get('event_id'):
-                      eid=s.json()['event_id'];g=requests.get(base+f'/gradio_api/call/health_api/{eid}',headers=headers,timeout=90);p['health_result_http']=g.status_code
+                      eid=s.json()['event_id']; g=requests.get(base+f'/gradio_api/call/health_api/{eid}',headers=headers,timeout=90); p['health_result_http']=g.status_code
                       if g.ok:
                           last=None
                           for line in g.text.splitlines():
                               if line.startswith('data:'):
                                   try:
                                       x=json.loads(line[5:].strip())
-                                      if isinstance(x,list) and x:last=x[0]
-                                  except Exception:pass
+                                      if isinstance(x,list) and x: last=x[0]
+                                  except Exception: pass
                           health=last
-                          if isinstance(last,dict):p['backend_version']=last.get('backend_version');p['release_id']=last.get('release_id');p['model']=last.get('model')
-              except Exception as e:p['health_error']=repr(e)
+                          if isinstance(last,dict): p['backend_version']=last.get('backend_version'); p['release_id']=last.get('release_id'); p['model']=last.get('model')
+              except Exception as e: p['health_error']=repr(e)
               probes.append(p)
-              if len(probes)>12:probes=probes[-12:]
-              if isinstance(health,dict) and health.get('backend_version')==EXPECTED and health.get('release_id')==RELEASE_ID and health.get('model')==MODEL and '/invoice_api' in api_names and '/parse_api' in api_names:break
+              if len(probes)>12: probes=probes[-12:]
+              if isinstance(health,dict) and health.get('backend_version')==EXPECTED and health.get('release_id')==RELEASE_ID and health.get('model')==MODEL and '/invoice_api' in api_names and '/parse_api' in api_names: break
               time.sleep(6)
           verified=bool(isinstance(health,dict) and health.get('backend_version')==EXPECTED and health.get('release_id')==RELEASE_ID and health.get('model')==MODEL and '/invoice_api' in api_names and '/parse_api' in api_names)
           out={'repo_id':repo_id,'space_url':base,'space_commit':str(commit),'health':health,'api_names':api_names,'verified':verified,'last_probes':probes}
           print(json.dumps(out,ensure_ascii=False,indent=2))
-          if not verified:raise RuntimeError(f'Nemotron Space r3 did not verify: {health}, apis={api_names}')
+          if not verified: raise RuntimeError(f'Nemotron Space r4 did not verify: {health}, apis={api_names}')
           PY
