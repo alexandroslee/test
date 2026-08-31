@@ -1,0 +1,153 @@
+name: Release Tax AI V1.6.0 Nemotron Parse 2.0
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/release-tax-ai-v160.yml'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+
+      - name: Build V1.6.0 from verified V1.5.9 r4
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+
+          old_version='1.5.9'
+          new_version='1.6.0'
+          old_release='tax-ai-1.5.9-nemotron-parse-20260831-r4'
+          new_release='tax-ai-1.6.0-nemotron-parse-20260831-r1'
+          old_build='20260831-v159-nemotron-parse-r4'
+          new_build='20260831-v160-nemotron-parse-r1'
+
+          src=Path('hf-space-tax-ai-v159')
+          dst=Path('hf-space-tax-ai-v160')
+          if dst.exists(): shutil.rmtree(dst)
+          shutil.copytree(src,dst)
+
+          app=(src/'app_v159.py').read_text(encoding='utf-8')
+          app=app.replace('Tax AI V1.5.9','Tax AI V1.6.0')
+          app=app.replace('BACKEND_VERSION="1.5.9"','BACKEND_VERSION="1.6.0"')
+          app=app.replace(old_release,new_release)
+          app=app.replace('spatial-v159-r4-grid-buyer','spatial-v160-r1-grid-buyer')
+          (dst/'app_v160.py').write_text(app,encoding='utf-8')
+          try:(dst/'app_v159.py').unlink()
+          except FileNotFoundError:pass
+
+          readme=(src/'README.md').read_text(encoding='utf-8')
+          readme=readme.replace('Tax AI Nemotron Parse V1.5.9','Tax AI Nemotron Parse V1.6.0')
+          readme=readme.replace('Tax AI V1.5.9','Tax AI V1.6.0')
+          readme=readme.replace('app_v159.py','app_v160.py')
+          readme=readme.replace(old_version,new_version).replace(old_release,new_release)
+          readme=readme.replace('V1.5.9 r3','V1.6.0 r1').replace('V1.5.9 r4','V1.6.0 r1')
+          (dst/'README.md').write_text(readme,encoding='utf-8')
+
+          js=Path('tax-ai-v1/nemotron-primary-v159.js').read_text(encoding='utf-8')
+          js=js.replace('__taxAiNemotron159','__taxAiNemotron160')
+          js=js.replace('__taxAiNemotronHealth159','__taxAiNemotronHealth160')
+          js=js.replace('__taxAiNemotronResult159','__taxAiNemotronResult160')
+          js=js.replace('__taxAiNemotron159Api','__taxAiNemotron160Api')
+          js=js.replace('nemotron159','nemotron160')
+          js=js.replace("VERSION='1.5.9'","VERSION='1.6.0'")
+          js=js.replace("BUILD='20260831-v159-nemotron-parse-r4'",f"BUILD='{new_build}'")
+          js=js.replace(old_release,new_release)
+          js=js.replace('V1.5.9','V1.6.0').replace(' r4',' r1')
+          Path('tax-ai-v1/nemotron-primary-v160.js').write_text(js,encoding='utf-8')
+
+          rel=Path('tax-ai-v1/release-v159.js').read_text(encoding='utf-8')
+          rel=rel.replace('__taxAiRelease159','__taxAiRelease160')
+          rel=rel.replace('V1.5.9','V1.6.0').replace('v159','v160')
+          Path('tax-ai-v1/release-v160.js').write_text(rel,encoding='utf-8')
+
+          out=Path('tax-ai-v160');out.mkdir(exist_ok=True)
+          html=Path('tax-ai-v159/index.html').read_text(encoding='utf-8')
+          html=html.replace('V1.5.9','V1.6.0').replace('v159','v160').replace('r4','r1')
+          html=html.replace('20260831-v159-nemotron-r4','20260831-v160-nemotron-r1')
+          html=html.replace('../tax-ai-v1/nemotron-primary-v159.js','../tax-ai-v1/nemotron-primary-v160.js')
+          html=html.replace('../tax-ai-v1/release-v159.js','../tax-ai-v1/release-v160.js')
+          (out/'index.html').write_text(html,encoding='utf-8')
+          PY
+
+      - name: Commit V1.6.0 web/source files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add hf-space-tax-ai-v160 tax-ai-v160 tax-ai-v1/nemotron-primary-v160.js tax-ai-v1/release-v160.js
+          git commit -m 'Tax AI V1.6.0 Nemotron Parse release' || true
+          git push origin gh-pages
+
+      - name: Install deployment clients
+        run: python -m pip install --upgrade 'huggingface_hub>=1.5.0' gradio_client requests
+
+      - name: Deploy V1.6.0 to existing ZeroGPU slot
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os,time,json
+          from huggingface_hub import HfApi
+          from gradio_client import Client, handle_file
+          from pathlib import Path
+
+          repo_id='AlexandrosLee/tax-ai-zerogpu-v152'
+          space='https://alexandroslee-tax-ai-zerogpu-v152.hf.space'
+          model='nvidia/NVIDIA-Nemotron-Parse-2.0'
+          release='tax-ai-1.6.0-nemotron-parse-20260831-r1'
+          api=HfApi(token=os.environ['HF_TOKEN'])
+          commit=api.upload_folder(folder_path='hf-space-tax-ai-v160',repo_id=repo_id,repo_type='space',commit_message='Tax AI V1.6.0 Nemotron Parse 2.0')
+          try: api.restart_space(repo_id=repo_id)
+          except Exception: pass
+
+          client=None;health=None
+          for attempt in range(90):
+              try:
+                  try: client=Client(space,hf_token=os.environ.get('HF_TOKEN'),verbose=False)
+                  except TypeError: client=Client(space,verbose=False)
+                  health=client.predict('health',api_name='/health_api')
+                  if isinstance(health,str):
+                      try:health=json.loads(health)
+                      except Exception:pass
+                  print('HEALTH',attempt+1,health)
+                  if isinstance(health,dict) and health.get('backend_version')=='1.6.0' and health.get('release_id')==release and health.get('model')==model:break
+              except Exception as e: print('WAIT',attempt+1,repr(e))
+              time.sleep(5)
+          assert isinstance(health,dict) and health.get('backend_version')=='1.6.0', health
+          assert health.get('release_id')==release, health
+          assert client is not None
+
+          tax_img=Path('tax-ai-v1/tax-category-v150-test.png')
+          buyer_img=Path('tax-ai-v1/zerogpu-test-54169882.png')
+          assert tax_img.exists() and buyer_img.exists()
+
+          tax=client.predict(handle_file(str(tax_img)),api_name='/invoice_api')
+          if isinstance(tax,str):
+              try:tax=json.loads(tax)
+              except Exception:pass
+          td=(tax.get('results') or [{}])[0].get('data') or {}
+          tev=(tax.get('results') or [{}])[0].get('evidence') or {}
+          assert td.get('tax_category')=='應稅', td
+          assert td.get('sales_amount')==848 and td.get('tax_amount')==42 and td.get('total_amount')==890, td
+          assert (tev.get('amounts') or {}).get('coherent') is True
+
+          buyer=client.predict(handle_file(str(buyer_img)),api_name='/invoice_api')
+          if isinstance(buyer,str):
+              try:buyer=json.loads(buyer)
+              except Exception:pass
+          bf=(buyer.get('results') or [{}])[0];bd=bf.get('data') or {};bev=bf.get('evidence') or {};ban=bev.get('ban') or {}
+          assert bd.get('buyer_tax_id')=='54169882', bd
+          assert any(c.get('value')=='54169882' and c.get('piece_count')==8 and c.get('valid_checksum') is True for c in (ban.get('buyer_candidates') or [])), ban
+
+          print('V160_RELEASE_PASS')
+          print(json.dumps({'space_commit':str(commit),'health':health,'tax':td,'buyer':bd.get('buyer_tax_id'),'buyer_candidates':ban.get('buyer_candidates')},ensure_ascii=False,indent=2))
+          PY
