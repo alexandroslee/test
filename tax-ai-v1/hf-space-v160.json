@@ -1,0 +1,33 @@
+{
+  "repo_id": "AlexandrosLee/tax-ai-zerogpu-v152",
+  "space_url": "https://alexandroslee-tax-ai-zerogpu-v152.hf.space",
+  "backend_version": "1.6.0",
+  "release_id": "tax-ai-1.6.0-nemotron-parse-20260831-r1",
+  "model": "nvidia/NVIDIA-Nemotron-Parse-2.0",
+  "architecture": "document-parse -> grid/segmented BAN reconstruction -> buyer ROI fallback -> spatial-rules -> validation",
+  "gpu_mode": "ZeroGPU",
+  "hardware": "zero-a10g",
+  "nested_gpu_calls": false,
+  "buyer_ban_strategy": "continuous-or-8-grid + checksum + buyer-ROI second pass",
+  "verified": true,
+  "space_commit": "58c67fe8ba61a7b8be97bada41540d10c11d901b",
+  "verification_workflow_run": 33414743220,
+  "buyer_grid_smoke": {
+    "input": "zerogpu-test-54169882.png",
+    "expected": "54169882",
+    "recognized": "54169882",
+    "piece_count": 8,
+    "valid_checksum": true,
+    "passed": true
+  },
+  "invoice_smoke": {
+    "input": "tax-category-v150-test.png",
+    "buyer_tax_id": "54169882",
+    "tax_category": "應稅",
+    "tax_category_source": "visible-mark-same-block",
+    "sales_amount": 848,
+    "tax_amount": 42,
+    "total_amount": 890,
+    "passed": true
+  }
+}
