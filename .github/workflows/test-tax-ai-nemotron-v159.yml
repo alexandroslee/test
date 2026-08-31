@@ -21,7 +21,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python - <<'PY'
-          import json, os
+          import json, os, time
           from pathlib import Path
           from gradio_client import Client, handle_file
 
@@ -33,10 +33,28 @@ jobs:
           assert Path(tax_img).exists(), tax_img
           assert Path(buyer_img).exists(), buyer_img
 
-          try:
-              client=Client(SPACE, hf_token=os.environ.get('HF_TOKEN'), verbose=False)
-          except TypeError:
-              client=Client(SPACE, verbose=False)
+          def connect():
+              try:
+                  return Client(SPACE, hf_token=os.environ.get('HF_TOKEN'), verbose=False)
+              except TypeError:
+                  return Client(SPACE, verbose=False)
+
+          client=None; health=None
+          for attempt in range(60):
+              try:
+                  client=connect()
+                  health=client.predict('health', api_name='/health_api')
+                  if isinstance(health,str):
+                      try: health=json.loads(health)
+                      except Exception: pass
+                  print('HEALTH', attempt+1, health)
+                  if isinstance(health,dict) and health.get('release_id')==RELEASE and health.get('model')==MODEL:
+                      break
+              except Exception as e:
+                  print('WAIT_BACKEND', attempt+1, repr(e))
+              time.sleep(5)
+          assert isinstance(health,dict) and health.get('release_id')==RELEASE, health
+          assert client is not None
 
           parsed=client.predict(handle_file(tax_img), api_name='/parse_api')
           if isinstance(parsed,str):
