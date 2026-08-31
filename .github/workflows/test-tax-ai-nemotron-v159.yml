@@ -16,7 +16,7 @@ jobs:
           ref: gh-pages
       - name: Install Gradio client
         run: python -m pip install --upgrade gradio_client
-      - name: Verify live Nemotron Parse and invoice rules
+      - name: Verify live Nemotron r4 tax rules and buyer 8-grid BAN
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -27,16 +27,18 @@ jobs:
 
           SPACE='https://alexandroslee-tax-ai-zerogpu-v152.hf.space'
           MODEL='nvidia/NVIDIA-Nemotron-Parse-2.0'
-          RELEASE='tax-ai-1.5.9-nemotron-parse-20260830-r3'
-          img='tax-ai-v1/tax-category-v150-test.png'
-          assert Path(img).exists(), img
+          RELEASE='tax-ai-1.5.9-nemotron-parse-20260831-r4'
+          tax_img='tax-ai-v1/tax-category-v150-test.png'
+          buyer_img='tax-ai-v1/zerogpu-test-54169882.png'
+          assert Path(tax_img).exists(), tax_img
+          assert Path(buyer_img).exists(), buyer_img
 
           try:
               client=Client(SPACE, hf_token=os.environ.get('HF_TOKEN'), verbose=False)
           except TypeError:
               client=Client(SPACE, verbose=False)
 
-          parsed=client.predict(handle_file(img), api_name='/parse_api')
+          parsed=client.predict(handle_file(tax_img), api_name='/parse_api')
           if isinstance(parsed,str):
               try: parsed=json.loads(parsed)
               except Exception: pass
@@ -47,15 +49,12 @@ jobs:
           assert int(parsed.get('block_count') or 0)>0
           print('PARSE_PASS', parsed['block_count'], parsed['blocks'][0].get('text'))
 
-          result=client.predict(handle_file(img), api_name='/invoice_api')
+          result=client.predict(handle_file(tax_img), api_name='/invoice_api')
           if isinstance(result,str):
               try: result=json.loads(result)
               except Exception: pass
-          print(json.dumps(result,ensure_ascii=False,indent=2))
           assert isinstance(result,dict), type(result)
-          assert result.get('backend_version')=='1.5.9'
           assert result.get('release_id')==RELEASE, result.get('release_id')
-          assert result.get('model')==MODEL
           first=(result.get('results') or [None])[0]
           assert isinstance(first,dict), first
           d=first.get('data') or {}; ev=first.get('evidence') or {}; amounts=ev.get('amounts') or {}; tc=ev.get('tax_category') or {}
@@ -66,5 +65,21 @@ jobs:
           assert amounts.get('coherent') is True, amounts
           assert amounts.get('tax_5pct') is True, amounts
           assert tc.get('source') in ('visible-mark-same-block','visible-mark-spatial'), tc
-          print('NEMOTRON_V159_INVOICE_RULES_PASS', d, tc)
+          print('TAX_RULES_PASS', d, tc)
+
+          buyer_result=client.predict(handle_file(buyer_img), api_name='/invoice_api')
+          if isinstance(buyer_result,str):
+              try: buyer_result=json.loads(buyer_result)
+              except Exception: pass
+          print(json.dumps(buyer_result,ensure_ascii=False,indent=2))
+          assert isinstance(buyer_result,dict), type(buyer_result)
+          assert buyer_result.get('backend_version')=='1.5.9'
+          assert buyer_result.get('release_id')==RELEASE, buyer_result.get('release_id')
+          assert buyer_result.get('model')==MODEL
+          bfirst=(buyer_result.get('results') or [None])[0]
+          assert isinstance(bfirst,dict), bfirst
+          bd=bfirst.get('data') or {}; bev=bfirst.get('evidence') or {}; ban=bev.get('ban') or {}
+          assert bd.get('buyer_tax_id')=='54169882', bd
+          assert any(c.get('value')=='54169882' and c.get('valid_checksum') is True for c in (ban.get('buyer_candidates') or [])), ban
+          print('BUYER_8_GRID_PASS', bd.get('buyer_tax_id'), ban.get('buyer_candidates'))
           PY
