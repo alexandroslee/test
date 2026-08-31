@@ -1,0 +1,74 @@
+name: Patch Tax AI V1.5.9 Frontend r4
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/patch-tax-ai-v159-r4-frontend.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+      - name: Patch r4 release contract and cache keys
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def patch(path, replacements):
+              p=Path(path)
+              s=p.read_text(encoding='utf-8')
+              old=s
+              for a,b in replacements:
+                  s=s.replace(a,b)
+              if s==old:
+                  print('NO_CHANGE', path)
+              else:
+                  p.write_text(s,encoding='utf-8')
+                  print('PATCHED', path)
+
+          patch('tax-ai-v1/nemotron-primary-v159.js',[
+              ('20260830-v159-nemotron-parse-r3','20260831-v159-nemotron-parse-r4'),
+              ('tax-ai-1.5.9-nemotron-parse-20260830-r3','tax-ai-1.5.9-nemotron-parse-20260831-r4'),
+              ('等待 V1.5.9 r3 後端連線','等待 V1.5.9 r4 後端連線'),
+              ('Backend V${r.backend_version} r3 已驗證','Backend V${r.backend_version} r4 已驗證'),
+              ('Release Contract 不符 V1.5.9 r3','Release Contract 不符 V1.5.9 r4'),
+              ('Parse 2.0 r3 完成','Parse 2.0 r4 完成'),
+              ('V1.5.9 r3 驗證','V1.5.9 r4 驗證'),
+              ('Parse 2.0 r3 正在背景解析','Parse 2.0 r4 正在背景解析'),
+          ])
+
+          patch('tax-ai-v159/index.html',[
+              ('20260830-v159-nemotron-r3','20260831-v159-nemotron-r4'),
+              ('V1.5.9 r3','V1.5.9 r4'),
+              ('2.0 r3','2.0 r4'),
+          ])
+
+          patch('tax-ai-v1/index.html',[
+              ('20260830-v159-nemotron-r3','20260831-v159-nemotron-r4'),
+          ])
+
+          patch('tax-ai-v1/release-v159.js',[
+              ('Tax AI 再用空間位置、統編檢查、金額等式與 5% 稅率完成對賬。','Tax AI 再用空間位置、8 格買受人統編重組、統編檢查、金額等式與 5% 稅率完成對賬。'),
+              ('文件文字＋Semantic Class＋Bounding Box → 空間規則引擎','文件文字＋Semantic Class＋Bounding Box → 8 格買受人統編重組 → 空間規則引擎'),
+          ])
+          PY
+      - name: Commit frontend r4
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tax-ai-v1/nemotron-primary-v159.js tax-ai-v159/index.html tax-ai-v1/index.html tax-ai-v1/release-v159.js
+          if git diff --cached --quiet; then
+            echo 'No frontend changes'
+          else
+            git commit -m 'Tax AI V1.5.9 r4 frontend: buyer 8-grid Nemotron release'
+            git push origin HEAD:gh-pages
+          fi
