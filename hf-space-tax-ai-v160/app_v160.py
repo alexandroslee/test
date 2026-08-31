@@ -1,5 +1,5 @@
 # Tax AI V1.6.0 — NVIDIA Nemotron Parse 2.0 (non-nested ZeroGPU)
-# r4: 8-grid buyer BAN reconstruction + buyer ROI second pass.
+# V1.6.0 r1: 8-grid buyer BAN reconstruction + buyer ROI second pass.
 # IMPORTANT: import spaces before torch.
 import spaces
 import os, re, sys, time
@@ -10,7 +10,7 @@ from PIL import Image
 from huggingface_hub import snapshot_download
 from transformers import AutoModel, AutoProcessor, GenerationConfig
 
-BACKEND_VERSION = "1.5.9"
+BACKEND_VERSION = "1.6.0"
 RELEASE_ID = "tax-ai-1.6.0-nemotron-parse-20260831-r1"
 MODEL_ID = "nvidia/NVIDIA-Nemotron-Parse-2.0"
 HF_TOKEN = os.getenv("HF_TOKEN") or None

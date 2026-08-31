@@ -42,7 +42,7 @@ Taiwan triplicate invoices often write the buyer tax ID as eight handwritten dig
 
 `| 5 | 4 | 1 | 6 | 9 | 8 | 8 | 2 |`
 
-V1.6.0 r4 therefore no longer requires one contiguous `54169882` token. It:
+V1.6.0 r1 therefore no longer requires one contiguous `54169882` token. It:
 
 1. extracts adjacent digit groups separated only by table/grid punctuation or whitespace;
 2. reconstructs exactly eight observed digits in reading order;
